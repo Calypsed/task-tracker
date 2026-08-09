@@ -17,3 +17,9 @@ Thumbs.db
 
 # Project data
 tasks.json
+
+# Also
+*.pyc
+.env
+*.log
+.pytest_cache/
