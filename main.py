@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException
-import sys
 import json
 from datetime import datetime
-from models import ValidStatuses, TaskCreate, TaskUpdate, TaskStatusUpdate
+from models import ValidStatuses, TaskCreate, TaskUpdate, TaskStatusUpdate, TaskResponse
 
 FILENAME = "tasks.json"
 KEY_NEXT_ID = "nextID"
@@ -16,9 +15,6 @@ KEY_UPDATED_AT = "updatedAt"
 ERROR_NO_TASKS = "No tasks at the moment!"
 ERROR_ID_NOT_FOUND = "No task with such id found!"
 ERROR_ID_NOT_INT = "Error: ID must be a number"
-ARGS_NUM_FOR_ADD_COMMAND = 3
-ARGS_NUM_FOR_DELETE_COMMAND = 3
-ARGS_NUM_FOR_UPDATE_COMMAND = 4
 ARGS_NUM_FOR_LIST_ALL_COMMAND = 2
 ARGS_NUM_FOR_LIST_STATUS_COMMAND = 3
 ARGS_NUM_FOR_SET_STATUS_COMMAND = 3
@@ -67,42 +63,30 @@ class TaskTracker:
 
     def list_tasks(self, status=None):
         if status:
-            return [t for t in self.tasks if t.get_status() == status]
+            return [t.to_response() for t in self.tasks if t.get_status() == status]
         else: 
-            return self.tasks
+            return [t.to_response() for t in self.tasks]
 
     def add_task(self, description):
-        if (
-            description and description.strip()
-        ):  # ' ' - whitespace is not a valid description
-            new_ID = 0
-            if self.deleted_IDs:
-                new_ID = min(self.deleted_IDs)
-                self.deleted_IDs.remove(new_ID)
-            else:
-                new_ID = self.next_ID
-                self.next_ID += 1
-
-            now = datetime.now()
-            new_task = Task(new_ID, description, 'todo', now, now)
-            self.tasks.append(new_task)
-            self._write_tasks()
-            print(f"Task added successfully (ID: {self.tasks[-1].get_id()})")
+        new_ID = 0
+        if self.deleted_IDs:
+            new_ID = min(self.deleted_IDs)
+            self.deleted_IDs.remove(new_ID)
         else:
-            print("The description is empty!")
+            new_ID = self.next_ID
+            self.next_ID += 1
+
+        now = datetime.now()
+        new_task = Task(new_ID, description, 'todo', now, now)
+        self.tasks.append(new_task)
+        self._write_tasks()
 
     def delete_task(self, task_id):
-        id_found = False
         for i, t in enumerate(self.tasks):
             if t.get_id() == task_id:
-                id_found = True
                 self.tasks.pop(i)
                 self.deleted_IDs.append(task_id)
                 break
-        if id_found:
-            print("Task deleted successfully!")
-        else:
-            print(ERROR_ID_NOT_FOUND)
         self._write_tasks()
 
     def get_task_by_id(self, task_id):
@@ -134,7 +118,6 @@ class TaskTracker:
 
 
 class Task:
-
     def __init__(self, task_id, description, status, created_at, updated_at):
         self.task_id = task_id
         self.description = description
@@ -150,6 +133,15 @@ class Task:
             KEY_CREATED_AT: self.created_at.isoformat(),
             KEY_UPDATED_AT: self.updated_at.isoformat(),
         }
+
+    def to_response(self):
+        return TaskResponse(
+            id=self.task_id,
+            description=self.description,
+            status=self.status,
+            createdAt=self.created_at,
+            updatedAt=self.updated_at
+        )
 
     def get_id(self):
         return self.task_id
@@ -174,41 +166,45 @@ tracker = TaskTracker(FILENAME)
 app = FastAPI()
 
 
-@app.get("/tasks")
+@app.get("/tasks", response_model=list[TaskResponse])
 async def list_tasks(status: ValidStatuses | None = None):
     return tracker.list_tasks(status)
 
-@app.get("/tasks/{task_id}")
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(task_id: int):
     task = tracker.get_task_by_id(task_id)
     if task:
-        return task
+        return task.to_response()
     else:
         raise HTTPException(status_code=404, detail=ERROR_ID_NOT_FOUND)
 
-@app.put("/tasks/{task_id}")
-async def update_task_description(task_id: int, task: TaskUpdate):
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+async def update_task_description(task_id: int, task_update: TaskUpdate):
     task = tracker.get_task_by_id(task_id)
     if task:
-        tracker.update_task_description(task_id, task.description)
-        return task
+        tracker.update_task_description(task_id, task_update.description)
+        return task.to_response()
     else:
         raise HTTPException(status_code=404, detail=ERROR_ID_NOT_FOUND)
 
 @app.delete("/tasks/{task_id}", status_code=204)
 async def delete_task(task_id: int):
-    tracker.delete_task(task_id)
+    task = tracker.get_task_by_id(task_id)
+    if task:
+        tracker.delete_task(task_id)
+    else:
+        raise HTTPException(status_code=404, detail=ERROR_ID_NOT_FOUND)
 
-@app.patch("/tasks/{task_id}/status")
+@app.patch("/tasks/{task_id}/status", response_model=TaskResponse)
 async def update_task_status(task_id: int, status: TaskStatusUpdate):
     task = tracker.get_task_by_id(task_id)
     if task:
         tracker.update_task_status(task_id, status.status)
-        return task
+        return task.to_response()
     else:
         raise HTTPException(status_code=404, detail=ERROR_ID_NOT_FOUND)
 
-@app.post("/tasks", status_code=201)
+@app.post("/tasks", response_model=TaskResponse, status_code=201)
 async def add_task(task: TaskCreate):
     tracker.add_task(task.description)
-    return tracker.tasks[-1]
+    return tracker.tasks[-1].to_response()
