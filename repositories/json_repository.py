@@ -1,9 +1,9 @@
 import json
 from models import Task
 import constants
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
 from models import ValidStatuses
+
 
 class JsonTaskRepository:
     def __init__(self, filename: str) -> None:
@@ -12,41 +12,54 @@ class JsonTaskRepository:
         self._next_ID = data[constants.KEY_NEXT_ID]
         self._deleted_IDs = data[constants.KEY_DELETED_IDS]
         tasks_data = data[constants.KEY_TASKS]
-        self._tasks = [
-            Task(
-                t[constants.KEY_ID],
-                t[constants.KEY_DESCRIPTION],
-                t[constants.KEY_STATUS],
-                datetime.fromisoformat(t[constants.KEY_CREATED_AT]),
-                datetime.fromisoformat(t[constants.KEY_UPDATED_AT]),
-            )
-            for t in tasks_data
-        ]
+        self._tasks = [self._to_task(t) for t in tasks_data]
+
+    @staticmethod
+    def _to_dict(task: Task) -> dict:
+        return {
+            constants.KEY_ID: task.id,
+            constants.KEY_DESCRIPTION: task.description,
+            constants.KEY_STATUS: task.status,
+            constants.KEY_CREATED_AT: task.created_at.isoformat(),
+            constants.KEY_UPDATED_AT: task.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def _to_task(data: dict) -> Task:
+        return Task(
+            id=data[constants.KEY_ID],
+            description=data[constants.KEY_DESCRIPTION],
+            status=ValidStatuses(data[constants.KEY_STATUS]),
+            created_at=datetime.fromisoformat(data[constants.KEY_CREATED_AT]),
+            updated_at=datetime.fromisoformat(data[constants.KEY_UPDATED_AT]),
+        )
 
     def _load_tasks(self):
-            try:
-                with open(self._filename, "r") as f:
-                    return json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                # File doesn't exist or JSON is corrupted
-                empty_data = {constants.KEY_NEXT_ID: 0,
-                               constants.KEY_DELETED_IDS: [], constants.KEY_TASKS: []}
-                with open(self._filename, "w") as f:
-                    json.dump(empty_data, f)
-                return empty_data
-    
-    def _write_tasks(self):
+        try:
+            with open(self._filename, "r") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            empty_data = {
+                constants.KEY_NEXT_ID: 0,
+                constants.KEY_DELETED_IDS: [],
+                constants.KEY_TASKS: [],
+            }
             with open(self._filename, "w") as f:
-                json.dump(
-                    {
-                        constants.KEY_NEXT_ID: self._next_ID,
-                        constants.KEY_DELETED_IDS: self._deleted_IDs,
-                        constants.KEY_TASKS: [t.to_dict() for t in self._tasks],
-                    },
-                    f,
-                )
+                json.dump(empty_data, f)
+            return empty_data
 
-    def create(self, task: Task) -> Task:
+    def _write_tasks(self):
+        with open(self._filename, "w") as f:
+            json.dump(
+                {
+                    constants.KEY_NEXT_ID: self._next_ID,
+                    constants.KEY_DELETED_IDS: self._deleted_IDs,
+                    constants.KEY_TASKS: [self._to_dict(t) for t in self._tasks],
+                },
+                f,
+            )
+
+    def create(self, description: str, status: ValidStatuses) -> Task:
         new_ID = 0
         if self._deleted_IDs:
             new_ID = min(self._deleted_IDs)
@@ -55,17 +68,25 @@ class JsonTaskRepository:
             new_ID = self._next_ID
             self._next_ID += 1
 
-        task.id = new_ID
+        now = datetime.now(timezone.utc)
+        task = Task(
+            id=new_ID,
+            description=description,
+            status=status,
+            created_at=now,
+            updated_at=now,
+        )
+
         self._tasks.append(task)
         self._write_tasks()
 
         return task
 
-    def get_all(self, status=None) -> List[Task]:
-         if status is None:
-             return self._tasks
-         
-         return [t for t in self._tasks if t.status == status]
+    def get_all(self, status: ValidStatuses | None = None) -> list[Task]:
+        if status is None:
+            return self._tasks
+
+        return [t for t in self._tasks if t.status == status]
 
     def get_by_id(self, task_id: int) -> Task | None:
         for t in self._tasks:
@@ -80,7 +101,7 @@ class JsonTaskRepository:
             return None
 
         task.description = description
-        task.updated_at = datetime.now()
+        task.updated_at = datetime.now(timezone.utc)
 
         self._write_tasks()
 
@@ -93,16 +114,18 @@ class JsonTaskRepository:
             return None
 
         task.status = status
-        task.updated_at = datetime.now()
+        task.updated_at = datetime.now(timezone.utc)
 
         self._write_tasks()
 
         return task
 
-    def delete(self, task_id: int) -> None:
-        for i, t in enumerate(self._tasks):
-            if t.id == task_id:
+    def delete(self, task_id: int) -> bool:
+        for i, task in enumerate(self._tasks):
+            if task.id == task_id:
                 self._tasks.pop(i)
                 self._deleted_IDs.append(task_id)
-                break
-        self._write_tasks()
+                self._write_tasks()
+                return True
+
+        return False
