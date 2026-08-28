@@ -1,6 +1,6 @@
 import argparse
 
-from exceptions import TaskNotFoundError
+from exceptions import TaskNotFoundError, InvalidTaskDescriptionError
 from models import ValidStatuses
 from repositories.factory import create_repository
 from services import TaskService
@@ -13,7 +13,10 @@ service = TaskService(repository)
 
 
 def add_task(args):
-    task = service.create_task(args.description)
+    try:
+        task = service.create_task(args.description)
+    except InvalidTaskDescriptionError:
+        print("Description must contain at least 3 characters.")
 
     print(f"Task added successfully (ID: {task.id})")
 

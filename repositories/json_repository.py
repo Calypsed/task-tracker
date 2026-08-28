@@ -10,7 +10,6 @@ class JsonTaskRepository:
         self._filename = filename
         data = self._load_tasks()
         self._next_ID = data[constants.KEY_NEXT_ID]
-        self._deleted_IDs = data[constants.KEY_DELETED_IDS]
         tasks_data = data[constants.KEY_TASKS]
         self._tasks = [self._to_task(t) for t in tasks_data]
 
@@ -41,7 +40,6 @@ class JsonTaskRepository:
         except FileNotFoundError:
             empty_data = {
                 constants.KEY_NEXT_ID: 0,
-                constants.KEY_DELETED_IDS: [],
                 constants.KEY_TASKS: [],
             }
             with open(self._filename, "w") as f:
@@ -53,20 +51,14 @@ class JsonTaskRepository:
             json.dump(
                 {
                     constants.KEY_NEXT_ID: self._next_ID,
-                    constants.KEY_DELETED_IDS: self._deleted_IDs,
                     constants.KEY_TASKS: [self._to_dict(t) for t in self._tasks],
                 },
                 f,
             )
 
     def create(self, description: str, status: ValidStatuses) -> Task:
-        new_ID = 0
-        if self._deleted_IDs:
-            new_ID = min(self._deleted_IDs)
-            self._deleted_IDs.remove(new_ID)
-        else:
-            new_ID = self._next_ID
-            self._next_ID += 1
+        new_ID = self._next_ID
+        self._next_ID += 1
 
         now = datetime.now(timezone.utc)
         task = Task(
@@ -84,7 +76,7 @@ class JsonTaskRepository:
 
     def get_all(self, status: ValidStatuses | None = None) -> list[Task]:
         if status is None:
-            return self._tasks
+            return self._tasks.copy()
 
         return [t for t in self._tasks if t.status == status]
 
@@ -124,8 +116,9 @@ class JsonTaskRepository:
         for i, task in enumerate(self._tasks):
             if task.id == task_id:
                 self._tasks.pop(i)
-                self._deleted_IDs.append(task_id)
                 self._write_tasks()
                 return True
 
         return False
+
+    

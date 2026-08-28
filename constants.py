@@ -1,6 +1,5 @@
 JSON_FILENAME = "tasks.json"
 KEY_NEXT_ID = "nextID"
-KEY_DELETED_IDS = "deletedIDs"
 KEY_TASKS = "tasks"
 KEY_ID = "task_id"
 KEY_DESCRIPTION = "description"

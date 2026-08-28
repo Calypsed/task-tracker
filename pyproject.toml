@@ -12,8 +12,13 @@ dependencies = [
 dev = [
     "black>=26.5.1",
     "flake8>=7.3.0",
+    "pytest>=9.1.1",
 ]
 
 [tool.black]
 line-length = 88
 target-version = ["py313"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
