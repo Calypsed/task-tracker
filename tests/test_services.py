@@ -15,23 +15,28 @@ def repository():
 def service(repository):
     return TaskService(repository)
 
+
 def test_create_task_creates_todo_task(service):
     task = service.create_task("Learn pytest")
 
     assert task.description == "Learn pytest"
     assert task.status == ValidStatuses.TODO
 
+
 def test_create_task_raises_when_description_is_too_short(service):
     with pytest.raises(InvalidTaskDescriptionError):
         service.create_task("ab")
+
 
 def test_create_task_raises_when_description_contains_only_spaces(service):
     with pytest.raises(InvalidTaskDescriptionError):
         service.create_task("   ")
 
+
 def test_create_task_strips_description(service):
     task = service.create_task("  Learn pytest  ")
     assert task.description == "Learn pytest"
+
 
 def test_get_task_by_id_returns_task(service, repository):
     created_task = repository.create(
@@ -43,11 +48,13 @@ def test_get_task_by_id_returns_task(service, repository):
 
     assert task == created_task
 
+
 def test_get_task_by_id_raises_with_correct_id(service):
     with pytest.raises(TaskNotFoundError) as error:
         service.get_task_by_id(999)
 
     assert error.value.task_id == 999
+
 
 def test_update_task_description_changes_description(service, repository):
     task = repository.create(
@@ -62,6 +69,7 @@ def test_update_task_description_changes_description(service, repository):
 
     assert updated_task.description == "New description"
 
+
 def test_update_task_description_raises_when_task_not_found(service):
     with pytest.raises(TaskNotFoundError):
         service.update_task_description(
@@ -69,10 +77,11 @@ def test_update_task_description_raises_when_task_not_found(service):
             "New description",
         )
 
+
 def test_update_task_description_raises_when_description_is_too_short(
     service,
     repository,
-    ):
+):
     task = repository.create(
         "Old description",
         ValidStatuses.TODO,
@@ -84,10 +93,11 @@ def test_update_task_description_raises_when_description_is_too_short(
             "ab",
         )
 
+
 def test_update_task_description_strips_description(
     service,
     repository,
-    ):
+):
     task = repository.create(
         "Old description",
         ValidStatuses.TODO,
@@ -100,10 +110,11 @@ def test_update_task_description_strips_description(
 
     assert updated_task.description == "New description"
 
+
 def test_update_task_description_raises_when_description_contains_only_spaces(
     service,
     repository,
-    ):
+):
     task = repository.create(
         "Old description",
         ValidStatuses.TODO,
@@ -114,6 +125,7 @@ def test_update_task_description_raises_when_description_contains_only_spaces(
             task.id,
             "   ",
         )
+
 
 def test_update_task_status_changes_task_status(service, repository):
     task = repository.create(
@@ -128,12 +140,14 @@ def test_update_task_status_changes_task_status(service, repository):
 
     assert updated_task.status == ValidStatuses.DONE
 
+
 def test_update_task_status_raises_when_task_not_found(service):
     with pytest.raises(TaskNotFoundError):
         service.update_task_status(
             999,
             ValidStatuses.DONE,
         )
+
 
 def test_delete_task(service, repository):
     task = repository.create(
@@ -144,6 +158,7 @@ def test_delete_task(service, repository):
     service.delete_task(task.id)
 
     assert repository.get_by_id(task.id) is None
+
 
 def test_delete_task_raises_when_task_not_found(service):
     with pytest.raises(TaskNotFoundError):

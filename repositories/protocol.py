@@ -6,9 +6,9 @@ class TaskRepository(Protocol):
     def create(self, description: str, status: ValidStatuses) -> Task: ...
 
     def get_all(
-            self,
-            status: ValidStatuses | None = None,
-            ) -> list[Task]: 
+        self,
+        status: ValidStatuses | None = None,
+    ) -> list[Task]:
         """Return tasks ordered by id in ascending order."""
         ...
 

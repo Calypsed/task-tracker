@@ -3,6 +3,7 @@ from repositories.json_repository import JsonTaskRepository
 import pytest
 import json
 
+
 @pytest.fixture
 def filename(tmp_path):
     return tmp_path / "tasks.json"
@@ -12,6 +13,7 @@ def filename(tmp_path):
 def repository(filename):
     return JsonTaskRepository(str(filename))
 
+
 def test_repository_creates_file_when_it_does_not_exist(filename):
     assert filename.exists() is False
 
@@ -19,6 +21,7 @@ def test_repository_creates_file_when_it_does_not_exist(filename):
 
     assert filename.exists() is True
     assert repository.get_all() == []
+
 
 def test_create_persists_task(filename):
     repository = JsonTaskRepository(str(filename))
@@ -33,6 +36,7 @@ def test_create_persists_task(filename):
     loaded_task = new_repository.get_by_id(created_task.id)
 
     assert loaded_task == created_task
+
 
 def test_update_description_persists_changes(repository, filename):
     task = repository.create(
@@ -51,6 +55,7 @@ def test_update_description_persists_changes(repository, filename):
     assert loaded_task is not None
     assert loaded_task.description == "New description"
 
+
 def test_delete_persists_changes(repository, filename):
     task = repository.create(
         "Learn pytest",
@@ -62,6 +67,7 @@ def test_delete_persists_changes(repository, filename):
     new_repository = JsonTaskRepository(str(filename))
 
     assert new_repository.get_by_id(task.id) is None
+
 
 def test_repository_does_not_overwrite_corrupted_json(tmp_path):
     filename = tmp_path / "tasks.json"

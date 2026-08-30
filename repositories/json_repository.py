@@ -120,5 +120,3 @@ class JsonTaskRepository:
                 return True
 
         return False
-
-    

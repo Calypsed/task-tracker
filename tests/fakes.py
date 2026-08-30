@@ -28,11 +28,7 @@ class FakeTaskRepository:
         if status is None:
             return self.tasks.copy()
 
-        return [
-            task
-            for task in self.tasks
-            if task.status == status
-        ]
+        return [task for task in self.tasks if task.status == status]
 
     def get_by_id(self, task_id: int) -> Task | None:
         for task in self.tasks:

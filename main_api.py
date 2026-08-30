@@ -1,12 +1,6 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
-from models import (
-    ValidStatuses,
-    TaskCreate, 
-    TaskUpdate, 
-    TaskStatusUpdate, 
-    TaskResponse
-)
+from models import ValidStatuses, TaskCreate, TaskUpdate, TaskStatusUpdate, TaskResponse
 from services import TaskService
 from repositories.factory import create_repository
 from exceptions import TaskNotFoundError
@@ -29,6 +23,7 @@ load_dotenv()
 
 app = FastAPI()
 
+
 @lru_cache
 def get_service() -> TaskService:
     repository = create_repository()
@@ -42,9 +37,8 @@ def task_not_found_handler(request: Request, exc: TaskNotFoundError):
 
 @app.get("/tasks", response_model=list[TaskResponse])
 def get_tasks(
-    status: ValidStatuses | None = None,
-    service: TaskService = Depends(get_service)
-    ):
+    status: ValidStatuses | None = None, service: TaskService = Depends(get_service)
+):
     return [to_task_response(t) for t in service.get_tasks(status)]
 
 
@@ -54,9 +48,9 @@ def get_task(task_id: int, service: TaskService = Depends(get_service)):
 
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
-def update_task_description(task_id: int,
-                            task_update: TaskUpdate,
-                            service: TaskService = Depends(get_service)):
+def update_task_description(
+    task_id: int, task_update: TaskUpdate, service: TaskService = Depends(get_service)
+):
     return to_task_response(
         service.update_task_description(task_id, task_update.description)
     )
@@ -68,9 +62,9 @@ def delete_task(task_id: int, service: TaskService = Depends(get_service)):
 
 
 @app.patch("/tasks/{task_id}/status", response_model=TaskResponse)
-def update_task_status(task_id: int,
-                       status: TaskStatusUpdate,
-                       service: TaskService = Depends(get_service)):
+def update_task_status(
+    task_id: int, status: TaskStatusUpdate, service: TaskService = Depends(get_service)
+):
     return to_task_response(service.update_task_status(task_id, status.status))
 
 

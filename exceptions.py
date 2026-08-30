@@ -3,5 +3,6 @@ class TaskNotFoundError(Exception):
         self.task_id = task_id
         super().__init__(f"Task with id {task_id} not found")
 
+
 class InvalidTaskDescriptionError(Exception):
     pass

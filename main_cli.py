@@ -83,7 +83,7 @@ def list_tasks(args):
         return
 
     for task in tasks:
-        print(f"{task.id}: " f"{task.description} " f"[{task.status.value}]")
+        print(f"{task.id}: {task.description} [{task.status.value}]")
 
 
 def main():

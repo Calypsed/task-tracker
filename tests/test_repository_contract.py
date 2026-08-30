@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 @pytest.fixture(params=["json", "postgres"])
 def repository(request, tmp_path):
     if request.param == "json":
@@ -15,7 +16,7 @@ def repository(request, tmp_path):
 
         yield JsonTaskRepository(str(filename))
         return
-    
+
     elif request.param == "postgres":
         dsn = os.environ["TEST_DATABASE_URL"]
 
@@ -37,6 +38,7 @@ def test_create_returns_created_task(repository):
     assert task.description == "Buy groceries"
     assert task.status == ValidStatuses.TODO
 
+
 def test_create_sets_timestamps(repository):
     task = repository.create(
         "Buy groceries",
@@ -47,6 +49,7 @@ def test_create_sets_timestamps(repository):
     assert task.updated_at is not None
     assert task.created_at == task.updated_at
     assert task.created_at.tzinfo is not None
+
 
 def test_create_assigns_unique_ids(repository):
     first_task = repository.create(
@@ -60,6 +63,7 @@ def test_create_assigns_unique_ids(repository):
 
     assert first_task.id != second_task.id
 
+
 def test_get_all_returns_tasks_ordered_by_id(repository):
     repository.create(
         "First task",
@@ -72,9 +76,8 @@ def test_get_all_returns_tasks_ordered_by_id(repository):
 
     tasks = repository.get_all()
 
-    assert [task.id for task in tasks] == sorted(
-        task.id for task in tasks
-    )
+    assert [task.id for task in tasks] == sorted(task.id for task in tasks)
+
 
 def test_get_all_filters_by_status(repository):
     todo_task = repository.create(
@@ -96,24 +99,25 @@ def test_get_all_filters_by_status(repository):
 
     assert tasks == [todo_task, second_todo_task]
 
+
 def test_get_by_id_returns_existing_task(repository):
     created_task = repository.create(
         "Learn pytest",
         ValidStatuses.TODO,
     )
 
-    found_task = repository.get_by_id(
-        created_task.id
-    )
+    found_task = repository.get_by_id(created_task.id)
 
     assert found_task is not None
     assert found_task.id == created_task.id
     assert found_task.description == "Learn pytest"
 
+
 def test_get_by_id_returns_none_when_task_not_found(repository):
     task = repository.get_by_id(999)
 
     assert task is None
+
 
 def test_update_description_changes_description(repository):
     task = repository.create(
@@ -134,6 +138,7 @@ def test_update_description_changes_description(repository):
     assert updated_task.status == ValidStatuses.TODO
     assert updated_task.updated_at >= old_updated_at
 
+
 def test_update_description_returns_none_when_task_not_found(repository):
     task = repository.update_description(
         999,
@@ -141,6 +146,7 @@ def test_update_description_returns_none_when_task_not_found(repository):
     )
 
     assert task is None
+
 
 def test_update_description_preserves_status(repository):
     task = repository.create(
@@ -154,6 +160,7 @@ def test_update_description_preserves_status(repository):
     )
 
     assert updated_task.status == ValidStatuses.DONE
+
 
 def test_update_status_changes_status(repository):
     task = repository.create(
@@ -169,6 +176,7 @@ def test_update_status_changes_status(repository):
     assert updated_task is not None
     assert updated_task.status == ValidStatuses.DONE
 
+
 def test_update_status_returns_none_when_task_not_found(repository):
     task = repository.update_status(
         999,
@@ -176,6 +184,7 @@ def test_update_status_returns_none_when_task_not_found(repository):
     )
 
     assert task is None
+
 
 def test_update_status_preserves_description(repository):
     task = repository.create(
@@ -190,6 +199,7 @@ def test_update_status_preserves_description(repository):
 
     assert updated_task.description == "Learn pytest"
 
+
 def test_delete_returns_true_when_task_exists(repository):
     task = repository.create(
         "Buy groceries",
@@ -200,6 +210,7 @@ def test_delete_returns_true_when_task_exists(repository):
 
     assert deleted is True
     assert repository.get_by_id(task.id) is None
+
 
 def test_delete_returns_false_when_task_not_found(repository):
     deleted = repository.delete(999)
