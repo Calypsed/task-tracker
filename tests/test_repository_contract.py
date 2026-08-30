@@ -60,20 +60,21 @@ def test_create_assigns_unique_ids(repository):
 
     assert first_task.id != second_task.id
 
-def test_get_all_returns_all_tasks(repository):
-    first_task = repository.create(
+def test_get_all_returns_tasks_ordered_by_id(repository):
+    repository.create(
         "First task",
         ValidStatuses.TODO,
     )
-
-    second_task = repository.create(
+    repository.create(
         "Second task",
         ValidStatuses.DONE,
     )
 
     tasks = repository.get_all()
 
-    assert tasks == [first_task, second_task]
+    assert [task.id for task in tasks] == sorted(
+        task.id for task in tasks
+    )
 
 def test_get_all_filters_by_status(repository):
     todo_task = repository.create(

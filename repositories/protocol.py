@@ -5,7 +5,12 @@ from models import Task, ValidStatuses
 class TaskRepository(Protocol):
     def create(self, description: str, status: ValidStatuses) -> Task: ...
 
-    def get_all(self, status: ValidStatuses | None = None) -> list[Task]: ...
+    def get_all(
+            self,
+            status: ValidStatuses | None = None,
+            ) -> list[Task]: 
+        """Return tasks ordered by id in ascending order."""
+        ...
 
     def get_by_id(self, task_id: int) -> Task | None: ...
 
