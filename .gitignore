@@ -3,3 +3,8 @@
 __pycache__/
 *.pyc
 tasks.json
+
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

@@ -6,22 +6,18 @@ from repositories.factory import create_repository
 from services import TaskService
 from dotenv import load_dotenv
 
-load_dotenv()
 
-repository = create_repository()
-service = TaskService(repository)
-
-
-def add_task(args):
+def add_task(args, service: TaskService):
     try:
         task = service.create_task(args.description)
     except InvalidTaskDescriptionError:
         print("Description must contain at least 3 characters.")
+        return
 
-    print(f"Task added successfully (ID: {task.id})")
+    print(f"Task added successfully (ID={task.id})")
 
 
-def update_task(args):
+def update_task(args, service: TaskService):
     try:
         service.update_task(
             args.task_id,
@@ -30,11 +26,14 @@ def update_task(args):
     except TaskNotFoundError as error:
         print(error)
         return
+    except InvalidTaskDescriptionError:
+        print("Description must contain at least 3 characters.")
+        return
 
     print("Task updated successfully")
 
 
-def delete_task(args):
+def delete_task(args, service: TaskService):
     try:
         service.delete_task(args.task_id)
     except TaskNotFoundError as error:
@@ -44,7 +43,7 @@ def delete_task(args):
     print("Task deleted successfully")
 
 
-def mark_in_progress(args):
+def mark_in_progress(args, service: TaskService):
     try:
         service.update_task(
             args.task_id,
@@ -57,7 +56,7 @@ def mark_in_progress(args):
     print("Task marked as in progress")
 
 
-def mark_done(args):
+def mark_done(args, service: TaskService):
     try:
         service.update_task(
             args.task_id,
@@ -70,7 +69,7 @@ def mark_done(args):
     print("Task marked as done")
 
 
-def list_tasks(args):
+def list_tasks(args, service: TaskService):
     status = None
 
     if args.status is not None:
@@ -86,7 +85,7 @@ def list_tasks(args):
         print(f"{task.id}: {task.description} [{task.status.value}]")
 
 
-def main():
+def create_parser():
     parser = argparse.ArgumentParser(
         prog="task-cli",
         description="Task Tracker CLI",
@@ -173,9 +172,20 @@ def main():
     )
     list_parser.set_defaults(func=list_tasks)
 
+    return parser
+
+
+def main():
+    load_dotenv()
+
+    repository = create_repository()
+    service = TaskService(repository)
+
+    parser = create_parser()
+
     args = parser.parse_args()
 
-    args.func(args)
+    args.func(args, service)
 
 
 if __name__ == "__main__":
