@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -34,11 +34,23 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    description: str
+    description: str | None = None
+    status: ValidStatuses | None = None
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: ValidStatuses | None):
+        if value is None:
+            raise ValueError("Status cannot be null")
+
+        return value
 
     @field_validator("description")
     @classmethod
-    def validate_description(cls, value: str):
+    def validate_description(cls, value: str | None):
+        if value is None:
+            raise ValueError("Description cannot be null")
+
         value = value.strip()
 
         if len(value) < 3:
@@ -46,9 +58,12 @@ class TaskUpdate(BaseModel):
 
         return value
 
+    @model_validator(mode="after")
+    def validate_update(self):
+        if self.description is None and self.status is None:
+            raise ValueError("At least one field must be provided.")
 
-class TaskStatusUpdate(BaseModel):
-    status: ValidStatuses
+        return self
 
 
 class TaskResponse(BaseModel):

@@ -23,9 +23,9 @@ def add_task(args):
 
 def update_task(args):
     try:
-        service.update_task_description(
+        service.update_task(
             args.task_id,
-            args.description,
+            description=args.description,
         )
     except TaskNotFoundError as error:
         print(error)
@@ -46,9 +46,9 @@ def delete_task(args):
 
 def mark_in_progress(args):
     try:
-        service.update_task_status(
+        service.update_task(
             args.task_id,
-            ValidStatuses.IN_PROGRESS,
+            status=ValidStatuses.IN_PROGRESS,
         )
     except TaskNotFoundError as error:
         print(error)
@@ -59,9 +59,9 @@ def mark_in_progress(args):
 
 def mark_done(args):
     try:
-        service.update_task_status(
+        service.update_task(
             args.task_id,
-            ValidStatuses.DONE,
+            status=ValidStatuses.DONE,
         )
     except TaskNotFoundError as error:
         print(error)

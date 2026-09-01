@@ -119,85 +119,62 @@ def test_get_by_id_returns_none_when_task_not_found(repository):
     assert task is None
 
 
-def test_update_description_changes_description(repository):
-    task = repository.create(
-        "Old description",
-        ValidStatuses.TODO,
-    )
-
-    old_updated_at = task.updated_at
-
-    updated_task = repository.update_description(
-        task.id,
-        "New description",
-    )
-
-    assert updated_task is not None
-    assert updated_task.id == task.id
-    assert updated_task.description == "New description"
-    assert updated_task.status == ValidStatuses.TODO
-    assert updated_task.updated_at >= old_updated_at
-
-
-def test_update_description_returns_none_when_task_not_found(repository):
-    task = repository.update_description(
-        999,
-        "New description",
-    )
-
-    assert task is None
-
-
-def test_update_description_preserves_status(repository):
+def test_update_changes_description(repository):
     task = repository.create(
         "Old description",
         ValidStatuses.DONE,
     )
 
-    updated_task = repository.update_description(
+    updated = repository.update(
         task.id,
-        "New description",
+        description="New description",
     )
 
-    assert updated_task.status == ValidStatuses.DONE
+    assert updated is not None
+    assert updated.description == "New description"
+    assert updated.status == ValidStatuses.DONE
 
 
-def test_update_status_changes_status(repository):
+def test_update_changes_status(repository):
     task = repository.create(
         "Learn pytest",
         ValidStatuses.TODO,
     )
 
-    updated_task = repository.update_status(
+    updated = repository.update(
         task.id,
-        ValidStatuses.DONE,
+        status=ValidStatuses.DONE,
     )
 
-    assert updated_task is not None
-    assert updated_task.status == ValidStatuses.DONE
+    assert updated is not None
+    assert updated.status == ValidStatuses.DONE
+    assert updated.description == "Learn pytest"
 
 
-def test_update_status_returns_none_when_task_not_found(repository):
-    task = repository.update_status(
+def test_update_changes_description_and_status(repository):
+    task = repository.create(
+        "Old description",
+        ValidStatuses.TODO,
+    )
+
+    updated = repository.update(
+        task.id,
+        description="New description",
+        status=ValidStatuses.DONE,
+    )
+
+    assert updated is not None
+    assert updated.description == "New description"
+    assert updated.status == ValidStatuses.DONE
+
+
+def test_update_returns_none_when_task_not_found(repository):
+    updated = repository.update(
         999,
-        ValidStatuses.DONE,
+        description="New description",
     )
 
-    assert task is None
-
-
-def test_update_status_preserves_description(repository):
-    task = repository.create(
-        "Learn pytest",
-        ValidStatuses.TODO,
-    )
-
-    updated_task = repository.update_status(
-        task.id,
-        ValidStatuses.DONE,
-    )
-
-    assert updated_task.description == "Learn pytest"
+    assert updated is None
 
 
 def test_delete_returns_true_when_task_exists(repository):

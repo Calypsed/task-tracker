@@ -88,15 +88,15 @@ def test_get_tasks_returns_200_and_all_tasks(client, repository):
 
 
 def test_get_tasks_filters_by_status(client, repository):
-    first = repository.create(
+    first_todo = repository.create(
         "First task",
         ValidStatuses.DONE,
     )
-    second = repository.create(
+    repository.create(
         "Second task",
         ValidStatuses.TODO,
     )
-    third = repository.create(
+    second_todo = repository.create(
         "Third task",
         ValidStatuses.DONE,
     )
@@ -107,8 +107,8 @@ def test_get_tasks_filters_by_status(client, repository):
 
     data = response.json()
     assert {task["id"] for task in data} == {
-        first.id,
-        third.id,
+        first_todo.id,
+        second_todo.id,
     }
 
 
@@ -147,13 +147,13 @@ def test_get_task_by_id_returns_404_when_task_not_found(client):
     assert response.json() == {"detail": "Task with id 999 not found"}
 
 
-def test_update_task_description_updates_description(client, repository):
+def test_update_task_updates_description(client, repository):
     task = repository.create(
         "Learn API testing",
         ValidStatuses.TODO,
     )
 
-    response = client.put(
+    response = client.patch(
         f"/tasks/{task.id}",
         json={
             "description": "New task description.",
@@ -163,28 +163,23 @@ def test_update_task_description_updates_description(client, repository):
     assert response.status_code == 200
     assert response.json()["id"] == task.id
     assert response.json()["description"] == "New task description."
+    assert response.json()["status"] == "todo"
 
 
-def test_update_task_description_returns_422_when_description_is_too_short(client):
-    response = client.put("/tasks/999", json={"description": "ab"})
+def test_update_task_returns_422_when_description_is_too_short(client):
+    response = client.patch("/tasks/999", json={"description": "ab"})
 
     assert response.status_code == 422
 
 
-def test_update_task_description_returns_404_when_task_not_found(client):
-    response = client.put("/tasks/999", json={"description": "New task description."})
-
-    assert response.status_code == 404
-
-
-def test_update_task_status_updates_status(client, repository):
+def test_update_task_updates_status(client, repository):
     task = repository.create(
         "Learn API testing",
         ValidStatuses.TODO,
     )
 
     response = client.patch(
-        f"/tasks/{task.id}/status",
+        f"/tasks/{task.id}",
         json={
             "status": "done",
         },
@@ -193,11 +188,46 @@ def test_update_task_status_updates_status(client, repository):
     assert response.status_code == 200
     assert response.json()["id"] == task.id
     assert response.json()["status"] == "done"
+    assert response.json()["description"] == "Learn API testing"
 
 
-def test_update_task_status_returns_404_when_task_not_found(client):
+def test_update_task_updates_description_and_status(
+    client,
+    repository,
+):
+    task = repository.create(
+        "Old description",
+        ValidStatuses.TODO,
+    )
+
     response = client.patch(
-        "/tasks/999/status",
+        f"/tasks/{task.id}",
+        json={
+            "description": "New description",
+            "status": "done",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["description"] == "New description"
+    assert data["status"] == "done"
+
+
+def test_update_task_returns_422_when_body_is_empty(client):
+    response = client.patch(
+        "/tasks/1",
+        json={},
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_task_returns_404_when_task_not_found(client):
+    response = client.patch(
+        "/tasks/999",
         json={
             "status": "done",
         },
@@ -206,20 +236,40 @@ def test_update_task_status_returns_404_when_task_not_found(client):
     assert response.status_code == 404
 
 
-def test_update_task_status_returns_422_when_status_is_invalid(
+def test_update_task_returns_422_when_status_is_invalid(
     client,
-    repository,
 ):
-    task = repository.create(
-        "Learn API testing",
-        ValidStatuses.TODO,
-    )
 
     response = client.patch(
-        f"/tasks/{task.id}/status",
+        "/tasks/1",
         json={
             "status": "banana",
         },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "description": None,
+            "status": "done",
+        },
+        {
+            "description": "New description",
+            "status": None,
+        },
+    ],
+)
+def test_update_task_returns_422_when_field_is_null(
+    client,
+    payload,
+):
+    response = client.patch(
+        "/tasks/1",
+        json=payload,
     )
 
     assert response.status_code == 422

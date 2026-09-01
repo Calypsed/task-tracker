@@ -56,29 +56,21 @@ def test_get_task_by_id_raises_with_correct_id(service):
     assert error.value.task_id == 999
 
 
-def test_update_task_description_changes_description(service, repository):
+def test_update_task_changes_description(service, repository):
     task = repository.create(
         "Old description",
         ValidStatuses.TODO,
     )
 
-    updated_task = service.update_task_description(
+    updated_task = service.update_task(
         task.id,
-        "New description",
+        description="New description",
     )
 
     assert updated_task.description == "New description"
 
 
-def test_update_task_description_raises_when_task_not_found(service):
-    with pytest.raises(TaskNotFoundError):
-        service.update_task_description(
-            999,
-            "New description",
-        )
-
-
-def test_update_task_description_raises_when_description_is_too_short(
+def test_update_task_raises_when_description_is_too_short(
     service,
     repository,
 ):
@@ -88,13 +80,13 @@ def test_update_task_description_raises_when_description_is_too_short(
     )
 
     with pytest.raises(InvalidTaskDescriptionError):
-        service.update_task_description(
+        service.update_task(
             task.id,
-            "ab",
+            description="ab",
         )
 
 
-def test_update_task_description_strips_description(
+def test_update_task_strips_description(
     service,
     repository,
 ):
@@ -103,15 +95,15 @@ def test_update_task_description_strips_description(
         ValidStatuses.TODO,
     )
 
-    updated_task = service.update_task_description(
+    updated_task = service.update_task(
         task.id,
-        "  New description  ",
+        description="  New description  ",
     )
 
     assert updated_task.description == "New description"
 
 
-def test_update_task_description_raises_when_description_contains_only_spaces(
+def test_update_task_raises_when_description_contains_only_spaces(
     service,
     repository,
 ):
@@ -121,31 +113,31 @@ def test_update_task_description_raises_when_description_contains_only_spaces(
     )
 
     with pytest.raises(InvalidTaskDescriptionError):
-        service.update_task_description(
+        service.update_task(
             task.id,
-            "   ",
+            description="   ",
         )
 
 
-def test_update_task_status_changes_task_status(service, repository):
+def test_update_task_changes_status(service, repository):
     task = repository.create(
         "Learn pytest",
         ValidStatuses.TODO,
     )
 
-    updated_task = service.update_task_status(
+    updated_task = service.update_task(
         task.id,
-        ValidStatuses.DONE,
+        status=ValidStatuses.DONE,
     )
 
     assert updated_task.status == ValidStatuses.DONE
 
 
-def test_update_task_status_raises_when_task_not_found(service):
+def test_update_task_raises_when_task_not_found(service):
     with pytest.raises(TaskNotFoundError):
-        service.update_task_status(
+        service.update_task(
             999,
-            ValidStatuses.DONE,
+            status=ValidStatuses.DONE,
         )
 
 

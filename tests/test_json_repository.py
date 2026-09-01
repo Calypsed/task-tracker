@@ -38,22 +38,20 @@ def test_create_persists_task(filename):
     assert loaded_task == created_task
 
 
-def test_update_description_persists_changes(repository, filename):
+def test_update_persists_changes(repository, filename):
     task = repository.create(
         "Old description",
         ValidStatuses.TODO,
     )
 
-    repository.update_description(
-        task.id,
-        "New description",
-    )
+    repository.update(task.id, description="New description", status=ValidStatuses.DONE)
 
     new_repository = JsonTaskRepository(str(filename))
     loaded_task = new_repository.get_by_id(task.id)
 
     assert loaded_task is not None
     assert loaded_task.description == "New description"
+    assert loaded_task.status == ValidStatuses.DONE
 
 
 def test_delete_persists_changes(repository, filename):

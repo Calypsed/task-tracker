@@ -86,26 +86,24 @@ class JsonTaskRepository:
                 return t
         return None
 
-    def update_description(self, task_id: int, description: str) -> Task | None:
+    def update(
+        self,
+        task_id: int,
+        *,
+        description: str | None = None,
+        status: ValidStatuses | None = None,
+    ) -> Task | None:
         task = self.get_by_id(task_id)
 
         if task is None:
             return None
 
-        task.description = description
-        task.updated_at = datetime.now(timezone.utc)
+        if description is not None:
+            task.description = description
 
-        self._write_tasks()
+        if status is not None:
+            task.status = status
 
-        return task
-
-    def update_status(self, task_id: int, status: ValidStatuses) -> Task | None:
-        task = self.get_by_id(task_id)
-
-        if task is None:
-            return None
-
-        task.status = status
         task.updated_at = datetime.now(timezone.utc)
 
         self._write_tasks()

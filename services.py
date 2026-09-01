@@ -40,25 +40,21 @@ class TaskService:
 
         return task
 
-    def update_task_description(
+    def update_task(
         self,
         task_id: int,
-        description: str,
+        *,
+        description: str | None = None,
+        status: ValidStatuses | None = None,
     ) -> Task:
-        description = self._validate_description(description)
+        if description is not None:
+            description = self._validate_description(description)
 
-        task = self.repository.update_description(
+        task = self.repository.update(
             task_id,
-            description,
+            description=description,
+            status=status,
         )
-
-        if task is None:
-            raise TaskNotFoundError(task_id)
-
-        return task
-
-    def update_task_status(self, task_id: int, status: ValidStatuses) -> Task:
-        task = self.repository.update_status(task_id, status)
 
         if task is None:
             raise TaskNotFoundError(task_id)

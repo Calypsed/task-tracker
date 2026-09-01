@@ -27,12 +27,7 @@ class DatabaseTaskRepository:
                     """
                     INSERT INTO tasks (description, status)
                     VALUES (%s, %s)
-                    RETURNING
-                        id,
-                        description,
-                        status,
-                        created_at,
-                        updated_at
+                    RETURNING *
                     """,
                     (
                         description,
@@ -100,53 +95,28 @@ class DatabaseTaskRepository:
 
         return self._to_task(row)
 
-    def update_description(self, task_id: int, description: str) -> Task | None:
+    def update(
+        self,
+        task_id: int,
+        *,
+        description: str | None = None,
+        status: ValidStatuses | None = None,
+    ) -> Task | None:
         with self._connect() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
                 row = cursor.execute(
                     """
                     UPDATE tasks
                     SET
-                        description = %s,
+                        description = COALESCE(%s, description),
+                        status = COALESCE(%s, status),
                         updated_at = NOW()
                     WHERE id = %s
-                    RETURNING
-                        id,
-                        description,
-                        status,
-                        created_at,
-                        updated_at
+                    RETURNING *
                     """,
                     (
                         description,
-                        task_id,
-                    ),
-                ).fetchone()
-
-        if row is None:
-            return None
-
-        return self._to_task(row)
-
-    def update_status(self, task_id: int, status: ValidStatuses) -> Task | None:
-        with self._connect() as conn:
-            with conn.cursor(row_factory=dict_row) as cursor:
-                row = cursor.execute(
-                    """
-                    UPDATE tasks
-                    SET
-                        status = %s,
-                        updated_at = NOW()
-                    WHERE id = %s
-                    RETURNING
-                        id,
-                        description,
-                        status,
-                        created_at,
-                        updated_at
-                    """,
-                    (
-                        status.value,
+                        status.value if status is not None else None,
                         task_id,
                     ),
                 ).fetchone()

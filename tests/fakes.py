@@ -37,32 +37,24 @@ class FakeTaskRepository:
 
         return None
 
-    def update_description(
+    def update(
         self,
         task_id: int,
-        description: str,
+        *,
+        description: str | None = None,
+        status: ValidStatuses | None = None,
     ) -> Task | None:
         task = self.get_by_id(task_id)
 
         if task is None:
             return None
 
-        task.description = description
-        task.updated_at = datetime.now(timezone.utc)
+        if description is not None:
+            task.description = description
 
-        return task
+        if status is not None:
+            task.status = status
 
-    def update_status(
-        self,
-        task_id: int,
-        status: ValidStatuses,
-    ) -> Task | None:
-        task = self.get_by_id(task_id)
-
-        if task is None:
-            return None
-
-        task.status = status
         task.updated_at = datetime.now(timezone.utc)
 
         return task
