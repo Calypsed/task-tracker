@@ -81,9 +81,9 @@ class JsonTaskRepository:
         return [t for t in self._tasks if t.status == status]
 
     def get_by_id(self, task_id: int) -> Task | None:
-        for t in self._tasks:
-            if t.id == task_id:
-                return t
+        for task in self._tasks:
+            if task.id == task_id:
+                return task
         return None
 
     def update(

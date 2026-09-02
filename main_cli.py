@@ -2,7 +2,7 @@ import argparse
 
 from exceptions import TaskNotFoundError, InvalidTaskDescriptionError
 from models import ValidStatuses
-from repositories.factory import create_repository
+from repositories.repository_factory import create_repository
 from services import TaskService
 from dotenv import load_dotenv
 

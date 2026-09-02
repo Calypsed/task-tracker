@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from models import ValidStatuses, TaskCreate, TaskUpdate, TaskResponse
 from services import TaskService
-from repositories.factory import create_repository
+from repositories.repository_factory import create_repository
 from exceptions import TaskNotFoundError
 from dotenv import load_dotenv
 from models import Task

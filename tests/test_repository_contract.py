@@ -101,8 +101,13 @@ def test_get_all_filters_by_status(repository):
 
 
 def test_get_by_id_returns_existing_task(repository):
+    repository.create(
+        "First task",
+        ValidStatuses.TODO,
+    )
+
     created_task = repository.create(
-        "Learn pytest",
+        "Second task",
         ValidStatuses.TODO,
     )
 
@@ -110,7 +115,7 @@ def test_get_by_id_returns_existing_task(repository):
 
     assert found_task is not None
     assert found_task.id == created_task.id
-    assert found_task.description == "Learn pytest"
+    assert found_task.description == "Second task"
 
 
 def test_get_by_id_returns_none_when_task_not_found(repository):
@@ -178,8 +183,13 @@ def test_update_returns_none_when_task_not_found(repository):
 
 
 def test_delete_returns_true_when_task_exists(repository):
+    repository.create(
+        "First task",
+        ValidStatuses.TODO,
+    )
+
     task = repository.create(
-        "Buy groceries",
+        "Second task",
         ValidStatuses.TODO,
     )
 
