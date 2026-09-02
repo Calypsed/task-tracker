@@ -7,4 +7,6 @@ tasks.json
 .pytest_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+.pytest_cache/
