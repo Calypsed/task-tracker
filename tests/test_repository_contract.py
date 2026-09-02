@@ -1,6 +1,6 @@
 from models import ValidStatuses
 from repositories.json_repository import JsonTaskRepository
-from repositories.db_repository import DatabaseTaskRepository
+from repositories.psycopg_repository import PsycopgTaskRepository
 import pytest
 import os
 import psycopg
@@ -23,7 +23,7 @@ def repository(request, tmp_path):
         with psycopg.connect(dsn) as conn:
             conn.execute("DELETE FROM tasks")
 
-        yield DatabaseTaskRepository(dsn)
+        yield PsycopgTaskRepository(dsn)
 
         with psycopg.connect(dsn) as conn:
             conn.execute("DELETE FROM tasks")

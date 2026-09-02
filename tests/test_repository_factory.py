@@ -1,6 +1,6 @@
 from repositories.repository_factory import create_repository
 from repositories.json_repository import JsonTaskRepository
-from repositories.db_repository import DatabaseTaskRepository
+from repositories.psycopg_repository import PsycopgTaskRepository
 import pytest
 
 def test_factory_creates_json_repository(monkeypatch, tmp_path):
@@ -23,7 +23,7 @@ def test_factory_creates_database_repository(monkeypatch):
 
     repository = create_repository()
 
-    assert isinstance(repository, DatabaseTaskRepository)
+    assert isinstance(repository, PsycopgTaskRepository)
 
 def test_factory_rejects_unknown_repository_type(monkeypatch):
     monkeypatch.setenv("REPOSITORY_TYPE", "banana")

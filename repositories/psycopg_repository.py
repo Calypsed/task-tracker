@@ -3,7 +3,7 @@ from psycopg.rows import dict_row
 from models import Task, ValidStatuses
 
 
-class DatabaseTaskRepository:
+class PsycopgTaskRepository:
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
 

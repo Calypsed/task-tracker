@@ -5,7 +5,7 @@ import pytest
 from dotenv import load_dotenv
 
 from models import ValidStatuses
-from repositories.db_repository import DatabaseTaskRepository
+from repositories.psycopg_repository import PsycopgTaskRepository
 
 load_dotenv()
 
@@ -17,7 +17,7 @@ def repository():
     with psycopg.connect(dsn) as conn:
         conn.execute("DELETE FROM tasks")
 
-    repository = DatabaseTaskRepository(dsn)
+    repository = PsycopgTaskRepository(dsn)
 
     yield repository
 
