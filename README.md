@@ -1,20 +1,69 @@
 # Task Tracker
 
-A small task-tracking application written in Python. The project started as a CLI application and now supports both a command-line interface and a REST API built with FastAPI.
+A small task-tracking application written in Python. It provides both a command-line interface and a REST API built with FastAPI.
 
-The application uses a service/repository architecture, so the same business logic can work with either JSON-file storage or PostgreSQL.
+The project uses a service/repository architecture: the CLI and API share the same business logic, while persistence can be switched between a local JSON file and PostgreSQL.
 
 ## Features
 
 - Create tasks
-- Update task descriptions
+- Update task descriptions and statuses
 - Delete tasks
-- Mark tasks as `todo`, `in-progress`, or `done`
 - List all tasks
 - Filter tasks by status
 - Get a task by ID through the REST API
-- Use either JSON or PostgreSQL as the storage backend
-- Use the same `TaskService` from both CLI and FastAPI
+- Store tasks in JSON or PostgreSQL
+- Share the same `TaskService` between CLI and FastAPI
+- Validate task descriptions and statuses
+- Test the service, CLI, API, repository implementations, and repository contract with pytest
+
+Valid task statuses are:
+
+- `todo`
+- `in-progress`
+- `done`
+
+Task descriptions are trimmed and must contain at least 3 characters.
+
+## Requirements
+
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/)
+- PostgreSQL only when using the PostgreSQL repository or running the PostgreSQL tests
+
+## Quick Start
+
+Install the project dependencies:
+
+```bash
+uv sync
+```
+
+The application uses the JSON repository by default, so no database or `.env` file is required for a basic local run.
+
+Add a task:
+
+```bash
+uv run python main_cli.py add "Buy groceries"
+```
+
+List tasks:
+
+```bash
+uv run python main_cli.py list
+```
+
+Start the API:
+
+```bash
+uv run uvicorn main_api:app --reload
+```
+
+Then open:
+
+- API: `http://127.0.0.1:8000`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
 
 ## Project Structure
 
@@ -24,104 +73,104 @@ task-tracker/
 │   └── schema.sql
 ├── repositories/
 │   ├── db_repository.py
-│   ├── factory.py
 │   ├── json_repository.py
-│   └── protocol.py
+│   ├── protocol.py
+│   └── repository_factory.py
+├── tests/
+│   ├── fakes.py
+│   ├── test_api.py
+│   ├── test_cli_e2e.py
+│   ├── test_cli_handlers.py
+│   ├── test_cli_parser.py
+│   ├── test_db_repository.py
+│   ├── test_json_repository.py
+│   ├── test_repository_contract.py
+│   ├── test_repository_factory.py
+│   └── test_services.py
 ├── .env.example
-├── .flake8
 ├── .gitignore
 ├── constants.py
 ├── exceptions.py
+├── LICENSE
 ├── main_api.py
 ├── main_cli.py
 ├── models.py
-├── services.py
-├── tasks.json
 ├── pyproject.toml
+├── README.md
+├── services.py
 └── uv.lock
 ```
+
+`tasks.json` is created at runtime when the JSON repository is used with its default filename. It is intentionally ignored by Git.
 
 ## Architecture
 
 ```text
-CLI ───────┐
-           │
-           ▼
-      TaskService
-           │
-           ▼
-     TaskRepository
-       ┌───┴────┐
-       ▼        ▼
-     JSON    PostgreSQL
-
-FastAPI ────┘
+CLI ---------\
+              \
+               -> TaskService -> TaskRepository -> JSON
+              /                              \\-> PostgreSQL
+FastAPI -----/
 ```
 
-- `main_cli.py` handles command-line input and output.
-- `main_api.py` exposes the REST API.
-- `services.py` contains application logic.
-- `TaskRepository` defines the repository contract using `Protocol`.
-- `JsonTaskRepository` stores tasks in `tasks.json`.
-- `DatabaseTaskRepository` stores tasks in PostgreSQL using Psycopg.
-- `factory.py` chooses the repository implementation from environment configuration.
+The main responsibilities are:
 
-## Requirements
+- `main_cli.py` parses CLI commands and prints CLI output.
+- `main_api.py` exposes the FastAPI endpoints and converts domain tasks to API responses.
+- `services.py` contains application-level task operations and description validation.
+- `models.py` contains the domain task model, status enum, and Pydantic API models.
+- `repositories/protocol.py` defines the `TaskRepository` contract with `Protocol`.
+- `repositories/json_repository.py` persists tasks to a JSON file.
+- `repositories/db_repository.py` persists tasks to PostgreSQL with Psycopg.
+- `repositories/repository_factory.py` selects the repository implementation from environment variables.
 
-- Python 3.13+
-- [uv](https://docs.astral.sh/uv/)
-- PostgreSQL, only if using the PostgreSQL repository
-
-## Installation
-
-Install dependencies:
-
-```bash
-uv sync
-```
-
-Black and Flake8 are included as development dependencies.
+Both frontends depend on `TaskService`, and `TaskService` depends only on the repository contract rather than a concrete storage backend.
 
 ## Configuration
 
-Copy `.env.example` to `.env`:
+Environment variables are loaded from `.env` by both the CLI and API.
+
+### JSON repository
+
+JSON is the default repository. The following configuration is therefore optional:
+
+```env
+REPOSITORY_TYPE=json
+JSON_FILENAME=tasks.json
+```
+
+`JSON_FILENAME` is optional. If it is not set, the application uses `tasks.json` in the current working directory.
+
+If the file does not exist, `JsonTaskRepository` creates it automatically.
+
+> Note: the JSON repository starts task IDs at `0`. PostgreSQL uses its own identity sequence, which normally starts at `1`. Client code should not assume a particular first ID.
+
+### PostgreSQL repository
+
+Set:
+
+```env
+REPOSITORY_TYPE=postgres
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME
+```
+
+The included `.env.example` is a PostgreSQL configuration template. Copy it only when you want to configure PostgreSQL, then replace the placeholder credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-### JSON repository
-
-```env
-REPOSITORY_TYPE=json
-```
-
-Tasks will be stored in `tasks.json`.
-
-### PostgreSQL repository
-
-```env
-REPOSITORY_TYPE=postgres
-DATABASE_URL=postgresql://task_tracker_user:password@localhost:5432/task_tracker
-```
-
-General PostgreSQL DSN format:
-
-```text
-postgresql://USER:PASSWORD@HOST:PORT/DATABASE_NAME
-```
-
-Do not commit `.env`. It is excluded by `.gitignore`.
+Do not commit `.env`; it is excluded by `.gitignore`.
 
 ## PostgreSQL Setup
 
-Create a database and application user, for example:
+Create a database and user, for example:
 
 ```sql
 CREATE USER task_tracker_user WITH PASSWORD 'your_password';
@@ -130,22 +179,30 @@ CREATE DATABASE task_tracker
     OWNER task_tracker_user;
 ```
 
-Connect to the `task_tracker` database as `task_tracker_user` and execute:
+Set your connection URL:
 
-```text
-database/schema.sql
+```env
+REPOSITORY_TYPE=postgres
+DATABASE_URL=postgresql://task_tracker_user:your_password@localhost:5432/task_tracker
 ```
 
-The schema creates the `tasks` table with:
+Apply the schema from `database/schema.sql`. With `psql`, for example:
 
-- auto-generated integer IDs
-- task descriptions with a minimum length of 3 characters
-- statuses limited to `todo`, `in-progress`, and `done`
-- automatic `created_at` and `updated_at` timestamps on creation
+```bash
+psql "postgresql://task_tracker_user:your_password@localhost:5432/task_tracker" \
+  -f database/schema.sql
+```
+
+The schema creates a `tasks` table with:
+
+- an auto-generated integer primary key
+- a non-null description whose trimmed length must be at least 3 characters
+- a status limited to `todo`, `in-progress`, or `done`
+- `created_at` and `updated_at` timestamp columns with timezone information
 
 ## CLI
 
-Run the CLI directly with Python:
+Show CLI help:
 
 ```bash
 uv run python main_cli.py --help
@@ -157,40 +214,52 @@ uv run python main_cli.py --help
 uv run python main_cli.py add "Buy groceries"
 ```
 
-Example output:
+Output has the following form:
 
 ```text
-Task added successfully (ID: 1)
+Task added successfully (ID=<task_id>)
 ```
 
-### Update a task
+### Update a task description
 
 ```bash
-uv run python main_cli.py update 1 "Buy groceries and cook dinner"
+uv run python main_cli.py update <task_id> "Buy groceries and cook dinner"
 ```
 
 ### Delete a task
 
 ```bash
-uv run python main_cli.py delete 1
+uv run python main_cli.py delete <task_id>
 ```
 
 ### Mark a task as in progress
 
 ```bash
-uv run python main_cli.py mark-in-progress 1
+uv run python main_cli.py mark-in-progress <task_id>
 ```
 
 ### Mark a task as done
 
 ```bash
-uv run python main_cli.py mark-done 1
+uv run python main_cli.py mark-done <task_id>
 ```
 
 ### List all tasks
 
 ```bash
 uv run python main_cli.py list
+```
+
+Each task is printed as:
+
+```text
+<id>: <description> [<status>]
+```
+
+If there are no matching tasks, the CLI prints:
+
+```text
+No tasks found
 ```
 
 ### Filter tasks by status
@@ -203,22 +272,10 @@ uv run python main_cli.py list done
 
 ## REST API
 
-Start the FastAPI application:
+Start the development server:
 
 ```bash
 uv run uvicorn main_api:app --reload
-```
-
-API URL:
-
-```text
-http://127.0.0.1:8000
-```
-
-Swagger documentation:
-
-```text
-http://127.0.0.1:8000/docs
 ```
 
 ### Endpoints
@@ -226,16 +283,34 @@ http://127.0.0.1:8000/docs
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `POST` | `/tasks` | Create a task |
-| `GET` | `/tasks` | List tasks |
-| `GET` | `/tasks?status=done` | Filter tasks by status |
-| `GET` | `/tasks/{task_id}` | Get a task by ID |
-| `PUT` | `/tasks/{task_id}` | Update task description |
-| `PATCH` | `/tasks/{task_id}/status` | Update task status |
+| `GET` | `/tasks` | List all tasks |
+| `GET` | `/tasks?status=<status>` | Filter tasks by status |
+| `GET` | `/tasks/{task_id}` | Get one task by ID |
+| `PATCH` | `/tasks/{task_id}` | Update description and/or status |
 | `DELETE` | `/tasks/{task_id}` | Delete a task |
 
-### Create task example
+### Task response
 
-Request:
+API task objects have this shape:
+
+```json
+{
+  "id": 0,
+  "description": "Learn FastAPI",
+  "status": "todo",
+  "createdAt": "2026-09-02T12:00:00Z",
+  "updatedAt": "2026-09-02T12:00:00Z"
+}
+```
+
+The exact ID and timestamps depend on the repository and time of creation.
+
+### Create a task
+
+```http
+POST /tasks
+Content-Type: application/json
+```
 
 ```json
 {
@@ -243,19 +318,54 @@ Request:
 }
 ```
 
-Example response:
+Successful creation returns `201 Created` and the created task.
+
+### List tasks
+
+```http
+GET /tasks
+```
+
+Filter by status:
+
+```http
+GET /tasks?status=done
+```
+
+An invalid status returns FastAPI validation error `422 Unprocessable Entity`.
+
+### Get a task by ID
+
+```http
+GET /tasks/{task_id}
+```
+
+If the task does not exist, the API returns `404 Not Found`:
 
 ```json
 {
-  "id": 1,
-  "description": "Learn PostgreSQL",
-  "status": "todo",
-  "createdAt": "2026-08-26T12:00:00Z",
-  "updatedAt": "2026-08-26T12:00:00Z"
+  "detail": "Task with id 999 not found"
 }
 ```
 
-### Update status example
+### Update a task
+
+The API uses one partial-update endpoint:
+
+```http
+PATCH /tasks/{task_id}
+Content-Type: application/json
+```
+
+Update only the description:
+
+```json
+{
+  "description": "Updated task description"
+}
+```
+
+Update only the status:
 
 ```json
 {
@@ -263,63 +373,122 @@ Example response:
 }
 ```
 
-Valid statuses:
+Update both:
 
-```text
-todo
-in-progress
-done
+```json
+{
+  "description": "Updated task description",
+  "status": "in-progress"
+}
 ```
+
+At least one field must be provided. Explicit `null` values are rejected. Invalid update payloads return `422 Unprocessable Entity`.
+
+### Delete a task
+
+```http
+DELETE /tasks/{task_id}
+```
+
+Successful deletion returns `204 No Content`.
+
+Deleting a missing task returns `404 Not Found`.
 
 ## Repository Switching
 
-Repository selection is handled by `repositories/factory.py`.
+Repository selection is handled by `repositories/repository_factory.py`.
 
-For JSON:
+The factory reads `REPOSITORY_TYPE`:
 
-```env
-REPOSITORY_TYPE=json
+- unset or `json` -> `JsonTaskRepository`
+- `postgres` -> `DatabaseTaskRepository`
+- any other value -> configuration error
+
+For PostgreSQL, `DATABASE_URL` must also be set.
+
+For JSON, `JSON_FILENAME` can optionally override the default `tasks.json` path.
+
+Because both implementations satisfy the same `TaskRepository` protocol, `TaskService` does not need to know which persistence backend is active.
+
+## Tests
+
+The test suite covers:
+
+- service logic
+- CLI parsing and handlers
+- CLI end-to-end flows
+- FastAPI endpoints
+- JSON repository behavior
+- PostgreSQL repository behavior
+- the shared repository contract
+- repository factory selection
+
+### Tests that do not require a live PostgreSQL database
+
+After `uv sync`, run:
+
+```bash
+uv run pytest \
+  --ignore=tests/test_db_repository.py \
+  --ignore=tests/test_repository_contract.py
 ```
 
-For PostgreSQL:
+### Full test suite
+
+The PostgreSQL tests expect `TEST_DATABASE_URL` to point to a test database containing the `tasks` table.
+
+For example:
 
 ```env
-REPOSITORY_TYPE=postgres
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME
+TEST_DATABASE_URL=postgresql://task_tracker_user:your_password@localhost:5432/task_tracker_test
 ```
 
-Both implementations follow the same `TaskRepository` protocol, so `TaskService` does not depend on a specific storage backend.
+Create the test database and apply `database/schema.sql`, then run:
+
+```bash
+uv run pytest
+```
+
+The PostgreSQL tests delete rows from the `tasks` table during setup and teardown, so use a dedicated test database rather than development or production data.
+
+### Coverage
+
+With the test database configured, coverage can be collected with:
+
+```bash
+uv run pytest --cov=. --cov-report=term-missing
+```
 
 ## Code Quality
 
-Format with Black:
+The project uses Ruff for formatting and linting.
+
+Format the code:
 
 ```bash
-uv run black .
+uv run ruff format .
 ```
 
 Check formatting without modifying files:
 
 ```bash
-uv run black --check .
+uv run ruff format --check .
 ```
 
-Run Flake8:
+Run the linter:
 
 ```bash
-uv run flake8 .
+uv run ruff check .
 ```
 
-## Future Improvements
+Apply automatically fixable lint fixes:
 
-- automated tests with pytest
-- shared validation for CLI and API
-- database migrations
-- PostgreSQL connection pooling
-- Docker setup
-- pagination
-- structured application configuration
+```bash
+uv run ruff check --fix .
+```
+
+Ruff is configured in `pyproject.toml` for Python 3.13 with a line length of 88 characters.
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE` for details.
+See `LICENSE`.
