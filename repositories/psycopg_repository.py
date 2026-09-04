@@ -102,6 +102,10 @@ class PsycopgTaskRepository:
         description: str | None = None,
         status: ValidStatuses | None = None,
     ) -> Task | None:
+
+        if description is None and status is None:
+            return self.get_by_id(task_id)
+
         with self._connect() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
                 row = cursor.execute(

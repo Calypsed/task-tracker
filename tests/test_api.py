@@ -25,6 +25,7 @@ def client(service):
 
     app.dependency_overrides.clear()
 
+
 def test_api_uses_real_service_dependency(monkeypatch, tmp_path):
     monkeypatch.setenv("REPOSITORY_TYPE", "json")
     monkeypatch.setenv(
@@ -39,6 +40,7 @@ def test_api_uses_real_service_dependency(monkeypatch, tmp_path):
         )
 
     assert response.status_code == 201
+
 
 def test_create_task_returns_created_task(client):
     response = client.post(
@@ -58,6 +60,7 @@ def test_create_task_returns_created_task(client):
     assert "createdAt" in data
     assert "updatedAt" in data
 
+
 def test_create_task_returns_422_when_description_is_too_short(client):
     response = client.post(
         "/tasks",
@@ -68,6 +71,7 @@ def test_create_task_returns_422_when_description_is_too_short(client):
 
     assert response.status_code == 422
 
+
 def test_create_task_returns_422_when_description_is_missing(client):
     response = client.post(
         "/tasks",
@@ -75,6 +79,7 @@ def test_create_task_returns_422_when_description_is_missing(client):
     )
 
     assert response.status_code == 422
+
 
 def test_get_tasks_returns_200_and_all_tasks(client, repository):
     first = repository.create(
@@ -96,6 +101,7 @@ def test_get_tasks_returns_200_and_all_tasks(client, repository):
         first.id,
         second.id,
     ]
+
 
 def test_get_tasks_filters_by_status(client, repository):
     first_todo = repository.create(
@@ -121,10 +127,12 @@ def test_get_tasks_filters_by_status(client, repository):
         second_todo.id,
     }
 
+
 def test_get_tasks_returns_422_when_status_is_invalid(client):
     response = client.get("/tasks?status=banana")
 
     assert response.status_code == 422
+
 
 def test_get_task_by_id_returns_task(client, repository):
     task = repository.create(
@@ -141,16 +149,19 @@ def test_get_task_by_id_returns_task(client, repository):
     assert data["description"] == task.description
     assert data["status"] == "todo"
 
+
 def test_get_task_by_id_returns_422_when_id_not_int(client):
     response = client.get("/tasks/ab")
 
     assert response.status_code == 422
+
 
 def test_get_task_by_id_returns_404_when_task_not_found(client):
     response = client.get("/tasks/999")
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Task with id 999 not found"}
+
 
 def test_update_task_updates_description(client, repository):
     task = repository.create(
@@ -170,10 +181,12 @@ def test_update_task_updates_description(client, repository):
     assert response.json()["description"] == "New task description."
     assert response.json()["status"] == "todo"
 
+
 def test_update_task_returns_422_when_description_is_too_short(client):
     response = client.patch("/tasks/999", json={"description": "ab"})
 
     assert response.status_code == 422
+
 
 def test_update_task_updates_status(client, repository):
     task = repository.create(
@@ -192,6 +205,7 @@ def test_update_task_updates_status(client, repository):
     assert response.json()["id"] == task.id
     assert response.json()["status"] == "done"
     assert response.json()["description"] == "Learn API testing"
+
 
 def test_update_task_updates_description_and_status(
     client,
@@ -217,6 +231,7 @@ def test_update_task_updates_description_and_status(
     assert data["description"] == "New description"
     assert data["status"] == "done"
 
+
 def test_update_task_returns_422_when_body_is_empty(client):
     response = client.patch(
         "/tasks/1",
@@ -224,6 +239,7 @@ def test_update_task_returns_422_when_body_is_empty(client):
     )
 
     assert response.status_code == 422
+
 
 def test_update_task_returns_404_when_task_not_found(client):
     response = client.patch(
@@ -234,6 +250,7 @@ def test_update_task_returns_404_when_task_not_found(client):
     )
 
     assert response.status_code == 404
+
 
 def test_update_task_returns_422_when_status_is_invalid(
     client,
@@ -247,6 +264,7 @@ def test_update_task_returns_422_when_status_is_invalid(
     )
 
     assert response.status_code == 422
+
 
 @pytest.mark.parametrize(
     "payload",
@@ -272,12 +290,14 @@ def test_update_task_returns_422_when_field_is_null(
 
     assert response.status_code == 422
 
+
 def test_delete_task_deletes_task(client, repository):
     task = repository.create("Learn API testing", ValidStatuses.TODO)
     response = client.delete(f"/tasks/{task.id}")
 
     assert response.status_code == 204
     assert repository.get_by_id(task.id) is None
+
 
 def test_delete_task_returns_404_when_task_not_found(client):
     response = client.delete("/tasks/999")

@@ -178,12 +178,12 @@ def create_parser():
 def main():
     load_dotenv()
 
-    repository = create_repository()
-    service = TaskService(repository)
-
     parser = create_parser()
 
     args = parser.parse_args()
+
+    repository = create_repository()
+    service = TaskService(repository)
 
     args.func(args, service)
 

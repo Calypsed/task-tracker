@@ -1,7 +1,9 @@
 from repositories.repository_factory import create_repository
 from repositories.json_repository import JsonTaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
+from repositories.sqlalchemy_repository import SqlAlchemyTaskRepository
 import pytest
+
 
 def test_factory_creates_json_repository(monkeypatch, tmp_path):
     monkeypatch.setenv("REPOSITORY_TYPE", "json")
@@ -14,8 +16,9 @@ def test_factory_creates_json_repository(monkeypatch, tmp_path):
 
     assert isinstance(repository, JsonTaskRepository)
 
-def test_factory_creates_database_repository(monkeypatch):
-    monkeypatch.setenv("REPOSITORY_TYPE", "postgres")
+
+def test_factory_creates_psycopg_repository(monkeypatch):
+    monkeypatch.setenv("REPOSITORY_TYPE", "psycopg")
     monkeypatch.setenv(
         "DATABASE_URL",
         "postgresql://test:test@localhost:5432/test_db",
@@ -24,6 +27,19 @@ def test_factory_creates_database_repository(monkeypatch):
     repository = create_repository()
 
     assert isinstance(repository, PsycopgTaskRepository)
+
+
+def test_factory_creates_sqlalchemy_repository(monkeypatch):
+    monkeypatch.setenv("REPOSITORY_TYPE", "sqlalchemy")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://test:test@localhost:5432/test_db",
+    )
+
+    repository = create_repository()
+
+    assert isinstance(repository, SqlAlchemyTaskRepository)
+
 
 def test_factory_rejects_unknown_repository_type(monkeypatch):
     monkeypatch.setenv("REPOSITORY_TYPE", "banana")

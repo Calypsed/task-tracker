@@ -1,6 +1,9 @@
 from models import ValidStatuses
 from repositories.json_repository import JsonTaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
+from repositories.sqlalchemy_repository import SqlAlchemyTaskRepository
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 import pytest
 import os
 import psycopg
@@ -9,7 +12,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-@pytest.fixture(params=["json", "postgres"])
+def clear_database(dsn: str) -> None:
+    with psycopg.connect(dsn) as conn:
+        conn.execute("DELETE FROM tasks")
+
+
+def make_sqlalchemy_url(dsn: str) -> str:
+    if dsn.startswith("postgresql://"):
+        return dsn.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1,
+        )
+
+    return dsn
+
+
+@pytest.fixture(params=["json", "postgres", "sqlalchemy"])
 def repository(request, tmp_path):
     if request.param == "json":
         filename = tmp_path / "tasks.json"
@@ -17,16 +36,26 @@ def repository(request, tmp_path):
         yield JsonTaskRepository(str(filename))
         return
 
-    elif request.param == "postgres":
-        dsn = os.environ["TEST_DATABASE_URL"]
+    dsn = os.environ["TEST_DATABASE_URL"]
 
-        with psycopg.connect(dsn) as conn:
-            conn.execute("DELETE FROM tasks")
+    clear_database(dsn)
 
+    if request.param == "postgres":
         yield PsycopgTaskRepository(dsn)
 
-        with psycopg.connect(dsn) as conn:
-            conn.execute("DELETE FROM tasks")
+    elif request.param == "sqlalchemy":
+        engine = create_engine(make_sqlalchemy_url(dsn))
+
+        session_factory = sessionmaker(
+            bind=engine,
+            expire_on_commit=False,
+        )
+
+        yield SqlAlchemyTaskRepository(session_factory)
+
+        engine.dispose()
+
+    clear_database(dsn)
 
 
 def test_create_returns_created_task(repository):
@@ -180,6 +209,18 @@ def test_update_returns_none_when_task_not_found(repository):
     )
 
     assert updated is None
+
+
+def test_update_without_changes_does_not_change_updated_at(repository):
+    task = repository.create(
+        "Some task",
+        ValidStatuses.TODO,
+    )
+
+    updated = repository.update(task.id)
+
+    assert updated is not None
+    assert updated.updated_at == task.updated_at
 
 
 def test_delete_returns_true_when_task_exists(repository):
