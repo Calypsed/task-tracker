@@ -2,11 +2,12 @@ import os
 
 from typing import assert_never
 from constants import JSON_FILENAME, RepositoryType
-from database.connection import create_session_factory
+from database.connection import make_session_factory, make_engine
 from repositories.json_repository import JsonTaskRepository
 from repositories.protocol import TaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
 from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
+from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
 
 
 def create_repository() -> TaskRepository:
@@ -34,8 +35,15 @@ def create_repository() -> TaskRepository:
 
         case RepositoryType.SQLALCHEMY_ORM:
             database_url = os.environ["DATABASE_URL"]
-            session_factory = create_session_factory(database_url)
+            engine = make_engine(database_url)
+            session_factory = make_session_factory(engine)
 
             return SqlAlchemyOrmTaskRepository(session_factory)
+
+        case RepositoryType.SQLALCHEMY_CORE:
+            database_url = os.environ["DATABASE_URL"]
+            engine = make_engine(database_url)
+
+            return SqlAlchemyCoreTaskRepository(engine)
 
     assert_never(repository_type)

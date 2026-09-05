@@ -16,3 +16,4 @@ class RepositoryType(StrEnum):
     JSON = "json"
     PSYCOPG = "psycopg"
     SQLALCHEMY_ORM = "sqlalchemy_orm"
+    SQLALCHEMY_CORE = "sqlalchemy_core"

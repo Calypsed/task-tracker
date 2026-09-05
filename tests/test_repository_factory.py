@@ -2,6 +2,7 @@ from repositories.repository_factory import create_repository
 from repositories.json_repository import JsonTaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
 from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
+from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
 import pytest
 from constants import RepositoryType
 
@@ -40,6 +41,18 @@ def test_factory_creates_sqlalchemy_orm_repository(monkeypatch):
     repository = create_repository()
 
     assert isinstance(repository, SqlAlchemyOrmTaskRepository)
+
+
+def test_factory_creates_sqlalchemy_core_repository(monkeypatch):
+    monkeypatch.setenv("REPOSITORY_TYPE", RepositoryType.SQLALCHEMY_CORE.value)
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://test:test@localhost:5432/test_db",
+    )
+
+    repository = create_repository()
+
+    assert isinstance(repository, SqlAlchemyCoreTaskRepository)
 
 
 def test_factory_rejects_unknown_repository_type(monkeypatch):

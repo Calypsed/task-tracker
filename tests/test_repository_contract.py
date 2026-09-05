@@ -2,6 +2,7 @@ from models import ValidStatuses
 from repositories.json_repository import JsonTaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
 from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
+from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pytest
@@ -10,24 +11,14 @@ import psycopg
 from dotenv import load_dotenv
 from constants import RepositoryType
 from typing import assert_never
+from database.connection import make_sqlalchemy_url
 
 load_dotenv()
 
 
 def clear_database(dsn: str) -> None:
     with psycopg.connect(dsn) as conn:
-        conn.execute("DELETE FROM tasks")
-
-
-def make_sqlalchemy_url(dsn: str) -> str:
-    if dsn.startswith("postgresql://"):
-        return dsn.replace(
-            "postgresql://",
-            "postgresql+psycopg://",
-            1,
-        )
-
-    return dsn
+        conn.execute("TRUNCATE TABLE tasks RESTART IDENTITY")
 
 
 @pytest.fixture(
@@ -35,6 +26,7 @@ def make_sqlalchemy_url(dsn: str) -> str:
         RepositoryType.JSON,
         RepositoryType.PSYCOPG,
         RepositoryType.SQLALCHEMY_ORM,
+        RepositoryType.SQLALCHEMY_CORE,
     ]
 )
 def repository(request, tmp_path):
@@ -68,6 +60,18 @@ def repository(request, tmp_path):
             )
 
             yield SqlAlchemyOrmTaskRepository(session_factory)
+
+            engine.dispose()
+            clear_database(dsn)
+            return
+
+        case RepositoryType.SQLALCHEMY_CORE:
+            dsn = os.environ["TEST_DATABASE_URL"]
+            clear_database(dsn)
+
+            engine = create_engine(make_sqlalchemy_url(dsn))
+
+            yield SqlAlchemyCoreTaskRepository(engine)
 
             engine.dispose()
             clear_database(dsn)

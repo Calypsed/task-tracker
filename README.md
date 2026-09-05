@@ -2,13 +2,14 @@
 
 A small task-tracking application written in Python with both a command-line interface and a REST API built with FastAPI.
 
-The project is primarily an architecture and persistence exercise. The same business logic works with three interchangeable repository implementations:
+The project is primarily an architecture and persistence exercise. The same service layer works with four interchangeable repository implementations:
 
 - JSON file storage
 - PostgreSQL through Psycopg and handwritten SQL
+- PostgreSQL through SQLAlchemy Core
 - PostgreSQL through SQLAlchemy ORM
 
-All repositories implement the same `TaskRepository` contract, allowing the CLI, API, and service layer to remain independent of the persistence technology.
+All implementations satisfy the same `TaskRepository` protocol and are verified by the same repository contract tests.
 
 ## Features
 
@@ -19,10 +20,10 @@ All repositories implement the same `TaskRepository` contract, allowing the CLI,
 - List all tasks
 - Filter tasks by status
 - Retrieve a task by ID through the REST API
-- Use JSON, Psycopg, or SQLAlchemy as the persistence implementation
-- Share the same `TaskService` between the CLI and FastAPI
+- Switch persistence implementations through environment configuration
+- Use the same `TaskService` from both CLI and FastAPI
 - Validate task descriptions and statuses
-- Verify repository implementations with shared contract tests
+- Verify repository behavior with shared contract tests
 - Verify PostgreSQL constraints with integration tests
 
 Supported task statuses:
@@ -42,6 +43,7 @@ Task descriptions are trimmed by the service layer and must contain at least 3 c
 - Psycopg 3
 - SQLAlchemy 2
 - pytest
+- pytest-cov
 - Ruff
 - uv
 
@@ -55,9 +57,16 @@ CLI -------------------\
 FastAPI ---------------/                        |
                                                 +--> JsonTaskRepository -> JSON file
                                                 |
-                                                +--> PsycopgTaskRepository -> Psycopg -> PostgreSQL
+                                                +--> PsycopgTaskRepository
+                                                |        -> Psycopg -> PostgreSQL
                                                 |
-                                                +--> SqlAlchemyTaskRepository -> SQLAlchemy -> Psycopg -> PostgreSQL
+                                                +--> SqlAlchemyCoreTaskRepository
+                                                |        -> Engine / Connection
+                                                |        -> SQLAlchemy Core -> Psycopg -> PostgreSQL
+                                                |
+                                                +--> SqlAlchemyOrmTaskRepository
+                                                         -> Session
+                                                         -> SQLAlchemy ORM -> Psycopg -> PostgreSQL
 ```
 
 The important dependency direction is:
@@ -71,12 +80,35 @@ TaskService
     v
 TaskRepository protocol
     |
-    +--> JSON implementation
-    +--> Psycopg implementation
-    +--> SQLAlchemy implementation
+    +--> JSON
+    +--> Psycopg
+    +--> SQLAlchemy Core
+    +--> SQLAlchemy ORM
 ```
 
 `TaskService` does not know which persistence technology is being used. Repository selection happens in `repositories/repository_factory.py`.
+
+## Why Both SQLAlchemy Core and ORM?
+
+The project intentionally keeps both SQLAlchemy styles for learning purposes.
+
+The same operations can be compared at three PostgreSQL abstraction levels:
+
+```text
+Psycopg                    SQLAlchemy Core             SQLAlchemy ORM
+
+handwritten SQL            SQL expression API          mapped Python objects
+INSERT INTO ...            insert(table)               session.add(model)
+SELECT ...                 select(table)               session.get(...)
+UPDATE ...                 update(table)               model.field = value
+DELETE ...                 delete(table)               session.delete(model)
+```
+
+`SqlAlchemyCoreTaskRepository` works with an `Engine`, `Connection`, SQL expressions, and the table exposed by `TaskModel.__table__`.
+
+`SqlAlchemyOrmTaskRepository` works with a `sessionmaker`, `Session`, and mapped `TaskModel` objects.
+
+Both return the same domain `Task` dataclass to the service layer.
 
 ## Project Structure
 
@@ -91,13 +123,15 @@ task-tracker/
 │   ├── protocol.py
 │   ├── psycopg_repository.py
 │   ├── repository_factory.py
-│   └── sqlalchemy_repository.py
+│   ├── sqlalchemy_core_repository.py
+│   └── sqlalchemy_orm_repository.py
 ├── tests/
 │   ├── fakes.py
 │   ├── test_api.py
 │   ├── test_cli_e2e.py
 │   ├── test_cli_handlers.py
 │   ├── test_cli_parser.py
+│   ├── test_database_connection.py
 │   ├── test_database_constraints.py
 │   ├── test_json_repository.py
 │   ├── test_repository_contract.py
@@ -117,55 +151,67 @@ task-tracker/
 └── uv.lock
 ```
 
-### Main modules
+### Main Modules
 
-- `main_cli.py` — CLI commands and terminal output.
+- `main_cli.py` — CLI parser, command handlers, and application startup.
 - `main_api.py` — FastAPI application and HTTP endpoints.
-- `services.py` — application-level task operations and validation.
+- `services.py` — application-level task operations and description validation.
 - `models.py` — domain `Task`, task statuses, and Pydantic request/response models.
-- `repositories/protocol.py` — common `TaskRepository` interface.
+- `repositories/protocol.py` — common `TaskRepository` protocol.
 - `repositories/json_repository.py` — JSON persistence implementation.
-- `repositories/psycopg_repository.py` — PostgreSQL implementation using handwritten SQL and Psycopg.
-- `repositories/sqlalchemy_repository.py` — PostgreSQL implementation using SQLAlchemy ORM.
-- `repositories/repository_factory.py` — selects the active repository from environment variables.
-- `database/models.py` — SQLAlchemy ORM models.
-- `database/connection.py` — creates the SQLAlchemy engine/session factory.
+- `repositories/psycopg_repository.py` — PostgreSQL implementation with handwritten SQL.
+- `repositories/sqlalchemy_core_repository.py` — PostgreSQL implementation using SQLAlchemy Core.
+- `repositories/sqlalchemy_orm_repository.py` — PostgreSQL implementation using SQLAlchemy ORM.
+- `repositories/repository_factory.py` — selects and constructs the configured repository.
+- `database/models.py` — SQLAlchemy declarative model for the `tasks` table.
+- `database/connection.py` — SQLAlchemy URL conversion, `Engine`, and `sessionmaker` creation.
 - `database/schema.sql` — current PostgreSQL schema definition.
 
 ## Installation
 
-Install dependencies with uv:
+Install dependencies with `uv`:
 
 ```bash
 uv sync
 ```
 
-The JSON repository is the default, so PostgreSQL is not required for a basic local run.
+The application defaults to the JSON repository when `REPOSITORY_TYPE` is not set, so PostgreSQL is not required for a basic local run.
 
 ## Configuration
 
-The application loads environment variables from `.env`.
+Copy the example environment file:
 
-`REPOSITORY_TYPE` supports three values:
+```bash
+cp .env.example .env
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`REPOSITORY_TYPE` supports four values:
 
 ```text
 json
 psycopg
-sqlalchemy
+sqlalchemy_core
+sqlalchemy_orm
 ```
 
-If `REPOSITORY_TYPE` is not set, the application uses `json`.
+If it is not set, the application uses `json`.
 
-### JSON repository
+### JSON Repository
 
 ```env
 REPOSITORY_TYPE=json
 JSON_FILENAME=tasks.json
 ```
 
-`JSON_FILENAME` is optional. If it is omitted, the application uses `tasks.json` in the current working directory.
+`JSON_FILENAME` is optional. If omitted, the application uses `tasks.json` in the current working directory.
 
-The file is created automatically when it does not exist.
+The file is created automatically if it does not exist.
 
 ### PostgreSQL with Psycopg
 
@@ -174,18 +220,27 @@ REPOSITORY_TYPE=psycopg
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME
 ```
 
-This implementation executes handwritten SQL directly through Psycopg.
+This implementation sends handwritten SQL directly through Psycopg.
 
-### PostgreSQL with SQLAlchemy
+### PostgreSQL with SQLAlchemy Core
 
 ```env
-REPOSITORY_TYPE=sqlalchemy
+REPOSITORY_TYPE=sqlalchemy_core
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME
 ```
 
-The factory creates a SQLAlchemy session factory and injects it into `SqlAlchemyTaskRepository`.
+The factory creates a SQLAlchemy `Engine` and injects it into `SqlAlchemyCoreTaskRepository`.
 
-A regular `postgresql://...` URL can be used for both PostgreSQL implementations. For SQLAlchemy, `database/connection.py` converts it internally to the `postgresql+psycopg://...` dialect URL.
+### PostgreSQL with SQLAlchemy ORM
+
+```env
+REPOSITORY_TYPE=sqlalchemy_orm
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME
+```
+
+The factory creates a SQLAlchemy `Engine`, builds a `sessionmaker`, and injects it into `SqlAlchemyOrmTaskRepository`.
+
+A regular `postgresql://...` URL can be used for all PostgreSQL implementations. `database/connection.py` converts it to `postgresql+psycopg://...` internally when SQLAlchemy is used.
 
 ## PostgreSQL Setup
 
@@ -205,25 +260,27 @@ psql "postgresql://task_tracker_user:your_password@localhost:5432/task_tracker" 
   -f database/schema.sql
 ```
 
-Then configure either PostgreSQL repository.
-
-Psycopg:
+Then choose any PostgreSQL repository:
 
 ```env
 REPOSITORY_TYPE=psycopg
-DATABASE_URL=postgresql://task_tracker_user:your_password@localhost:5432/task_tracker
 ```
 
-SQLAlchemy:
+or:
 
 ```env
-REPOSITORY_TYPE=sqlalchemy
-DATABASE_URL=postgresql://task_tracker_user:your_password@localhost:5432/task_tracker
+REPOSITORY_TYPE=sqlalchemy_core
 ```
 
-Both implementations work with the same `tasks` table.
+or:
 
-### Database schema
+```env
+REPOSITORY_TYPE=sqlalchemy_orm
+```
+
+All three PostgreSQL repositories work with the same `tasks` table.
+
+### Database Schema
 
 The current schema is managed by `database/schema.sql` and contains:
 
@@ -231,231 +288,196 @@ The current schema is managed by `database/schema.sql` and contains:
 - non-null task description
 - a PostgreSQL `CHECK` constraint requiring at least 3 non-whitespace characters
 - a `CHECK` constraint restricting status to `todo`, `in-progress`, or `done`
-- `created_at` and `updated_at` timezone-aware timestamps
+- timezone-aware `created_at` and `updated_at` timestamps
 
 Alembic migrations are not part of the project yet.
 
-## Repository Implementations
+## Running the CLI
 
-### `JsonTaskRepository`
-
-Stores tasks in a JSON file and is useful for running the project without external infrastructure.
-
-### `PsycopgTaskRepository`
-
-Uses Psycopg directly and contains explicit SQL for `INSERT`, `SELECT`, `UPDATE`, and `DELETE` operations.
-
-This implementation is intentionally kept alongside SQLAlchemy so the project contains a working example of direct PostgreSQL access with handwritten SQL.
-
-### `SqlAlchemyTaskRepository`
-
-Uses the SQLAlchemy 2 ORM API.
-
-`TaskModel` represents the PostgreSQL `tasks` table, while the repository converts ORM objects into the domain `Task` dataclass before returning them to the service layer.
-
-The repository receives a `sessionmaker` through its constructor instead of creating the engine itself:
-
-```text
-repository_factory
-      |
-      v
-create_session_factory()
-      |
-      v
-sessionmaker
-      |
-      v
-SqlAlchemyTaskRepository
-```
-
-This keeps database connection setup separate from repository behavior and makes the repository easier to test.
-
-## CLI
-
-Show help:
+Show available commands:
 
 ```bash
 uv run python main_cli.py --help
 ```
 
-### Add a task
+Create a task:
 
 ```bash
-uv run python main_cli.py add "Buy groceries"
+uv run python main_cli.py add "Learn SQLAlchemy Core"
 ```
 
-### Update a description
-
-```bash
-uv run python main_cli.py update 1 "Buy groceries and cook dinner"
-```
-
-### Mark a task as in progress
-
-```bash
-uv run python main_cli.py mark-in-progress 1
-```
-
-### Mark a task as done
-
-```bash
-uv run python main_cli.py mark-done 1
-```
-
-### Delete a task
-
-```bash
-uv run python main_cli.py delete 1
-```
-
-### List all tasks
+List tasks:
 
 ```bash
 uv run python main_cli.py list
 ```
 
-### Filter by status
+Filter tasks by status:
 
 ```bash
-uv run python main_cli.py list todo
-uv run python main_cli.py list in-progress
 uv run python main_cli.py list done
 ```
 
-Task output has the following form:
-
-```text
-1: Buy groceries [todo]
-```
-
-## REST API
-
-Start the development server:
+Update a description:
 
 ```bash
-uv run uvicorn main_api:app --reload
+uv run python main_cli.py update 1 "Learn SQLAlchemy deeply"
 ```
 
-Useful URLs:
+Change status:
 
-- API base: `http://127.0.0.1:8000`
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
+```bash
+uv run python main_cli.py mark-in-progress 1
+uv run python main_cli.py mark-done 1
+```
 
-### Endpoints
+Delete a task:
+
+```bash
+uv run python main_cli.py delete 1
+```
+
+## Running the API
+
+Start the FastAPI development server:
+
+```bash
+uv run fastapi dev main_api.py
+```
+
+The API exposes:
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `POST` | `/tasks` | Create a task |
 | `GET` | `/tasks` | List tasks |
-| `GET` | `/tasks?status=<status>` | Filter tasks by status |
-| `GET` | `/tasks/{task_id}` | Get a task by ID |
+| `GET` | `/tasks?status=done` | Filter tasks by status |
+| `GET` | `/tasks/{task_id}` | Get one task |
 | `PATCH` | `/tasks/{task_id}` | Update description and/or status |
 | `DELETE` | `/tasks/{task_id}` | Delete a task |
 
-### Create a task
-
-```http
-POST /tasks
-Content-Type: application/json
-```
+Example request body for creating a task:
 
 ```json
 {
-  "description": "Learn SQLAlchemy"
+  "description": "Learn repository pattern"
 }
 ```
 
-A newly created task starts with status `todo`.
-
-### Update a task
-
-```http
-PATCH /tasks/1
-Content-Type: application/json
-```
+Example update:
 
 ```json
 {
-  "description": "Learn SQLAlchemy ORM",
+  "description": "Learn SQLAlchemy Core",
   "status": "in-progress"
 }
 ```
 
-At least one update field must be provided.
+FastAPI provides interactive API documentation while the development server is running.
 
-### Response shape
+## Repository Contract
 
-```json
-{
-  "id": 1,
-  "description": "Learn SQLAlchemy",
-  "status": "todo",
-  "createdAt": "2026-09-04T12:00:00Z",
-  "updatedAt": "2026-09-04T12:00:00Z"
-}
+All four repositories implement the same interface:
+
+```python
+class TaskRepository(Protocol):
+    def create(self, description: str, status: ValidStatuses) -> Task: ...
+
+    def get_all(
+        self,
+        status: ValidStatuses | None = None,
+    ) -> list[Task]: ...
+
+    def get_by_id(self, task_id: int) -> Task | None: ...
+
+    def update(
+        self,
+        task_id: int,
+        *,
+        description: str | None = None,
+        status: ValidStatuses | None = None,
+    ) -> Task | None: ...
+
+    def delete(self, task_id: int) -> bool: ...
 ```
+
+This keeps business logic independent of storage implementation and allows the same behavioral tests to be reused for every repository.
 
 ## Testing
 
-The project uses pytest.
+### Test Database
 
-### Full test suite
+The shared repository contract includes PostgreSQL-backed implementations, so running the full test suite requires a separate test database.
 
-The complete test suite includes PostgreSQL integration tests and therefore requires a dedicated test database.
+Create one and apply the same schema:
 
-Create the test database, apply the same schema, and set:
-
-```env
-TEST_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/TEST_DATABASE_NAME
+```sql
+CREATE DATABASE task_tracker_test
+    OWNER task_tracker_user;
 ```
 
-Then run:
+```bash
+psql "postgresql://task_tracker_user:your_password@localhost:5432/task_tracker_test" \
+  -f database/schema.sql
+```
+
+Set its URL in `.env`:
+
+```env
+TEST_DATABASE_URL=postgresql://task_tracker_user:your_password@localhost:5432/task_tracker_test
+```
+
+Do not point `TEST_DATABASE_URL` at a database containing data you want to keep. Repository contract tests truncate the `tasks` table and restart its identity sequence to isolate test cases.
+
+### Run Tests
+
+Run the full suite:
 
 ```bash
 uv run pytest
 ```
 
-> Important: repository contract tests clear the `tasks` table in `TEST_DATABASE_URL`. Use a dedicated test database, never a database containing real data.
+Run with coverage:
 
-### Repository contract tests
+```bash
+uv run pytest --cov=. --cov-report=term-missing
+```
 
-`tests/test_repository_contract.py` runs the same behavior tests against:
+### Repository Contract Tests
 
-- `JsonTaskRepository`
-- `PsycopgTaskRepository`
-- `SqlAlchemyTaskRepository`
+`tests/test_repository_contract.py` parameterizes the same behavioral tests over:
 
-This verifies that all three implementations obey the same repository contract regardless of how tasks are stored.
+```text
+JsonTaskRepository
+PsycopgTaskRepository
+SqlAlchemyCoreTaskRepository
+SqlAlchemyOrmTaskRepository
+```
 
-The contract covers behavior such as:
+The contract verifies behavior such as:
 
-- task creation
+- creation
+- generated IDs
 - timestamps
-- unique IDs
 - ordering
 - status filtering
 - lookup by ID
-- updates
+- partial updates
 - no-op updates
 - deletion
-- missing-task behavior
+- behavior for missing tasks
 
-Run only the repository contract tests:
+### Database-Specific Tests
 
-```bash
-uv run pytest tests/test_repository_contract.py
-```
+`tests/test_database_constraints.py` checks behavior enforced directly by PostgreSQL, independently of a repository implementation.
 
-### Database constraint tests
+For example, it verifies that the database rejects descriptions that violate the schema `CHECK` constraint.
 
-`tests/test_database_constraints.py` tests PostgreSQL itself directly through Psycopg. For example, it verifies that the database rejects descriptions shorter than the schema allows.
-
-This is intentionally separate from repository contract testing: repository tests verify application behavior, while database constraint tests verify guarantees enforced by PostgreSQL.
+`tests/test_database_connection.py` verifies SQLAlchemy connection URL conversion.
 
 ## Code Quality
 
-Format the project:
+Format the project with Ruff:
 
 ```bash
 uv run ruff format .
@@ -467,37 +489,23 @@ Run lint checks:
 uv run ruff check .
 ```
 
-Run tests:
-
-```bash
-uv run pytest
-```
-
-A typical pre-commit check is therefore:
+A useful pre-commit sequence is:
 
 ```bash
 uv run ruff format .
 uv run ruff check .
 uv run pytest
+git diff
+git status
 ```
 
-## Current Learning Focus
+## Current Persistence Design
 
-The project deliberately keeps both PostgreSQL implementations:
+The PostgreSQL schema currently lives in `database/schema.sql`.
 
-```text
-Handwritten SQL                   SQLAlchemy ORM
-       |                                |
-       v                                v
-PsycopgTaskRepository          SqlAlchemyTaskRepository
-       \                                /
-        \                              /
-         +-------- PostgreSQL --------+
-```
+SQLAlchemy metadata describes the columns needed by the ORM and Core repositories, while PostgreSQL remains responsible for the database-level constraints defined in the SQL schema.
 
-This makes it possible to compare direct SQL with ORM-based persistence while keeping the public repository behavior identical.
-
-A natural next step is to introduce Alembic for versioned database schema migrations. At the moment, database setup still uses `database/schema.sql`.
+A natural next learning step is to introduce Alembic so schema changes can be versioned as migrations instead of being maintained only through a standalone SQL file.
 
 ## License
 

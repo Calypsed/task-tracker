@@ -95,6 +95,9 @@ class JsonTaskRepository:
     ) -> Task | None:
         task = self.get_by_id(task_id)
 
+        if description is None and status is None:
+            return task
+
         if task is None:
             return None
 
