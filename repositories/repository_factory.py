@@ -46,4 +46,4 @@ def create_repository() -> TaskRepository:
 
             return SqlAlchemyCoreTaskRepository(engine)
 
-    assert_never(repository_type)
+    assert_never(repository_type) # pragma: no cover
