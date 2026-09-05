@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import re
+from constants import RepositoryType
 
 
 def run_cli(*args, env):
@@ -21,7 +22,7 @@ def test_cli_add_and_list_e2e(tmp_path):
     filename = tmp_path / "tasks.json"
 
     env = os.environ.copy()
-    env["REPOSITORY_TYPE"] = "json"
+    env["REPOSITORY_TYPE"] = RepositoryType.JSON.value
     env["JSON_FILENAME"] = str(filename)
 
     add_result = run_cli("add", "Learn pytest", env=env)
@@ -39,7 +40,7 @@ def test_cli_task_lifecycle_e2e(tmp_path):
     filename = tmp_path / "tasks.json"
 
     env = os.environ.copy()
-    env["REPOSITORY_TYPE"] = "json"
+    env["REPOSITORY_TYPE"] = RepositoryType.JSON.value
     env["JSON_FILENAME"] = str(filename)
 
     add_result = run_cli("add", "Learn pytest", env=env)

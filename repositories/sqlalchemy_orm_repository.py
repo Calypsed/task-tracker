@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 
-class SqlAlchemyTaskRepository:
+class SqlAlchemyOrmTaskRepository:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 

@@ -4,6 +4,7 @@ from models import ValidStatuses
 from main_api import app, get_service
 from services import TaskService
 from tests.fakes import FakeTaskRepository
+from constants import RepositoryType
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def client(service):
 
 
 def test_api_uses_real_service_dependency(monkeypatch, tmp_path):
-    monkeypatch.setenv("REPOSITORY_TYPE", "json")
+    monkeypatch.setenv("REPOSITORY_TYPE", RepositoryType.JSON.value)
     monkeypatch.setenv(
         "JSON_FILENAME",
         str(tmp_path / "tasks.json"),

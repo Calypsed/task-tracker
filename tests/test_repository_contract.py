@@ -1,13 +1,15 @@
 from models import ValidStatuses
 from repositories.json_repository import JsonTaskRepository
 from repositories.psycopg_repository import PsycopgTaskRepository
-from repositories.sqlalchemy_repository import SqlAlchemyTaskRepository
+from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pytest
 import os
 import psycopg
 from dotenv import load_dotenv
+from constants import RepositoryType
+from typing import assert_never
 
 load_dotenv()
 
@@ -28,34 +30,50 @@ def make_sqlalchemy_url(dsn: str) -> str:
     return dsn
 
 
-@pytest.fixture(params=["json", "postgres", "sqlalchemy"])
+@pytest.fixture(
+    params=[
+        RepositoryType.JSON,
+        RepositoryType.PSYCOPG,
+        RepositoryType.SQLALCHEMY_ORM,
+    ]
+)
 def repository(request, tmp_path):
-    if request.param == "json":
-        filename = tmp_path / "tasks.json"
+    repository_type: RepositoryType = request.param
 
-        yield JsonTaskRepository(str(filename))
-        return
+    match repository_type:
+        case RepositoryType.JSON:
+            filename = tmp_path / "tasks.json"
 
-    dsn = os.environ["TEST_DATABASE_URL"]
+            yield JsonTaskRepository(str(filename))
+            return
 
-    clear_database(dsn)
+        case RepositoryType.PSYCOPG:
+            dsn = os.environ["TEST_DATABASE_URL"]
+            clear_database(dsn)
 
-    if request.param == "postgres":
-        yield PsycopgTaskRepository(dsn)
+            yield PsycopgTaskRepository(dsn)
 
-    elif request.param == "sqlalchemy":
-        engine = create_engine(make_sqlalchemy_url(dsn))
+            clear_database(dsn)
+            return
 
-        session_factory = sessionmaker(
-            bind=engine,
-            expire_on_commit=False,
-        )
+        case RepositoryType.SQLALCHEMY_ORM:
+            dsn = os.environ["TEST_DATABASE_URL"]
+            clear_database(dsn)
 
-        yield SqlAlchemyTaskRepository(session_factory)
+            engine = create_engine(make_sqlalchemy_url(dsn))
 
-        engine.dispose()
+            session_factory = sessionmaker(
+                bind=engine,
+                expire_on_commit=False,
+            )
 
-    clear_database(dsn)
+            yield SqlAlchemyOrmTaskRepository(session_factory)
+
+            engine.dispose()
+            clear_database(dsn)
+            return
+
+    assert_never(repository_type)
 
 
 def test_create_returns_created_task(repository):
