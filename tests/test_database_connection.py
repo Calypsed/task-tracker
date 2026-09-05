@@ -12,6 +12,7 @@ def test_make_sqlalchemy_url_keeps_existing_driver():
 
     assert url == ("postgresql+psycopg://user:password@localhost/db")
 
+
 def test_make_sqlalchemy_url_keeps_other_urls_unchanged():
     url = "sqlite:///test.db"
 
