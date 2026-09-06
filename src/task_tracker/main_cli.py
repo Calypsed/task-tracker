@@ -87,7 +87,7 @@ def list_tasks(args, service: TaskService):
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        prog="task-cli",
+        prog="task-tracker",
         description="Task Tracker CLI",
     )
 

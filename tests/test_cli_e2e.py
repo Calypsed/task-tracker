@@ -4,7 +4,7 @@ import re
 from task_tracker.constants import RepositoryType
 
 
-def run_cli(*args, env):
+def run_cli(*args, env=None):
     return subprocess.run(
         [
             "task-tracker",
@@ -14,6 +14,13 @@ def run_cli(*args, env):
         text=True,
         env=env,
     )
+
+
+def test_cli_entrypoint_displays_help():
+    result = run_cli("--help")
+
+    assert result.returncode == 0
+    assert "Task Tracker CLI" in result.stdout
 
 
 def test_cli_add_and_list_e2e(tmp_path):
