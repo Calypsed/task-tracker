@@ -1,8 +1,8 @@
 import pytest
 
-from exceptions import TaskNotFoundError, InvalidTaskDescriptionError
-from models import ValidStatuses
-from services import TaskService
+from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionError
+from task_tracker.models import ValidStatuses
+from task_tracker.services import TaskService
 from tests.fakes import FakeTaskRepository
 
 

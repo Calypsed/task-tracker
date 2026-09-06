@@ -5,8 +5,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from database.models import Base
-from database.connection import make_sqlalchemy_url
+from task_tracker.database.models import Base
+from task_tracker.database.connection import make_sqlalchemy_url
 from dotenv import load_dotenv
 import os
 

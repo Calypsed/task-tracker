@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from models import Task, ValidStatuses
+from task_tracker.models import Task, ValidStatuses
 
 
 class FakeTaskRepository:

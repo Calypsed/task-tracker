@@ -1,13 +1,17 @@
 import os
 
 from typing import assert_never
-from constants import JSON_FILENAME, RepositoryType
-from database.connection import make_session_factory, make_engine
-from repositories.json_repository import JsonTaskRepository
-from repositories.protocol import TaskRepository
-from repositories.psycopg_repository import PsycopgTaskRepository
-from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
-from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
+from task_tracker.constants import JSON_FILENAME, RepositoryType
+from task_tracker.database.connection import make_session_factory, make_engine
+from task_tracker.repositories.json_repository import JsonTaskRepository
+from task_tracker.repositories.protocol import TaskRepository
+from task_tracker.repositories.psycopg_repository import PsycopgTaskRepository
+from task_tracker.repositories.sqlalchemy_orm_repository import (
+    SqlAlchemyOrmTaskRepository,
+)
+from task_tracker.repositories.sqlalchemy_core_repository import (
+    SqlAlchemyCoreTaskRepository,
+)
 
 
 def create_repository() -> TaskRepository:

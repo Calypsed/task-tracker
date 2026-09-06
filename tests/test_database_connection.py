@@ -1,4 +1,4 @@
-from database.connection import make_sqlalchemy_url
+from task_tracker.database.connection import make_sqlalchemy_url
 
 
 def test_make_sqlalchemy_url_adds_psycopg_driver():

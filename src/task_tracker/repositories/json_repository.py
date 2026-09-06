@@ -1,8 +1,8 @@
 import json
-from models import Task
-import constants
+from task_tracker.models import Task
+import task_tracker.constants as constants
 from datetime import datetime, timezone
-from models import ValidStatuses
+from task_tracker.models import ValidStatuses
 
 
 class JsonTaskRepository:

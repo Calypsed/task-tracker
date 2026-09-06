@@ -1,5 +1,5 @@
 from typing import Protocol
-from models import Task, ValidStatuses
+from task_tracker.models import Task, ValidStatuses
 
 
 class TaskRepository(Protocol):

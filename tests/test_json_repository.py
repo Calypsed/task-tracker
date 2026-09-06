@@ -1,5 +1,5 @@
-from models import ValidStatuses
-from repositories.json_repository import JsonTaskRepository
+from task_tracker.models import ValidStatuses
+from task_tracker.repositories.json_repository import JsonTaskRepository
 import pytest
 import json
 

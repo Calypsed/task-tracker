@@ -1,10 +1,14 @@
-from repositories.repository_factory import create_repository
-from repositories.json_repository import JsonTaskRepository
-from repositories.psycopg_repository import PsycopgTaskRepository
-from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
-from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
+from task_tracker.repositories.repository_factory import create_repository
+from task_tracker.repositories.json_repository import JsonTaskRepository
+from task_tracker.repositories.psycopg_repository import PsycopgTaskRepository
+from task_tracker.repositories.sqlalchemy_orm_repository import (
+    SqlAlchemyOrmTaskRepository,
+)
+from task_tracker.repositories.sqlalchemy_core_repository import (
+    SqlAlchemyCoreTaskRepository,
+)
 import pytest
-from constants import RepositoryType
+from task_tracker.constants import RepositoryType
 
 
 def test_factory_creates_json_repository(monkeypatch, tmp_path):

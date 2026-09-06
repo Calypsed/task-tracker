@@ -1,5 +1,5 @@
-from models import Task, ValidStatuses
-from database.models import TaskModel
+from task_tracker.models import Task, ValidStatuses
+from task_tracker.database.models import TaskModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 

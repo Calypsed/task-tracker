@@ -1,17 +1,21 @@
-from models import ValidStatuses
-from repositories.json_repository import JsonTaskRepository
-from repositories.psycopg_repository import PsycopgTaskRepository
-from repositories.sqlalchemy_orm_repository import SqlAlchemyOrmTaskRepository
-from repositories.sqlalchemy_core_repository import SqlAlchemyCoreTaskRepository
+from task_tracker.models import ValidStatuses
+from task_tracker.repositories.json_repository import JsonTaskRepository
+from task_tracker.repositories.psycopg_repository import PsycopgTaskRepository
+from task_tracker.repositories.sqlalchemy_orm_repository import (
+    SqlAlchemyOrmTaskRepository,
+)
+from task_tracker.repositories.sqlalchemy_core_repository import (
+    SqlAlchemyCoreTaskRepository,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pytest
 import os
 import psycopg
 from dotenv import load_dotenv
-from constants import RepositoryType
+from task_tracker.constants import RepositoryType
 from typing import assert_never
-from database.connection import make_sqlalchemy_url
+from task_tracker.database.connection import make_sqlalchemy_url
 
 load_dotenv()
 

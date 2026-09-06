@@ -1,6 +1,6 @@
 import pytest
 import argparse
-from main_cli import (
+from task_tracker.main_cli import (
     add_task,
     list_tasks,
     update_task,
@@ -8,9 +8,9 @@ from main_cli import (
     mark_in_progress,
     delete_task,
 )
-from services import TaskService
-from fakes import FakeTaskRepository
-from models import ValidStatuses
+from task_tracker.services import TaskService
+from tests.fakes import FakeTaskRepository
+from task_tracker.models import ValidStatuses
 
 
 @pytest.fixture

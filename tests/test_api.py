@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
-from models import ValidStatuses
-from main_api import app, get_service
-from services import TaskService
+from task_tracker.models import ValidStatuses
+from task_tracker.main_api import app, get_service
+from task_tracker.services import TaskService
 from tests.fakes import FakeTaskRepository
-from constants import RepositoryType
+from task_tracker.constants import RepositoryType
 
 
 @pytest.fixture

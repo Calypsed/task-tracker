@@ -1,15 +1,13 @@
-import sys
 import os
 import subprocess
 import re
-from constants import RepositoryType
+from task_tracker.constants import RepositoryType
 
 
 def run_cli(*args, env):
     return subprocess.run(
         [
-            sys.executable,
-            "main_cli.py",
+            "task-tracker",
             *args,
         ],
         capture_output=True,

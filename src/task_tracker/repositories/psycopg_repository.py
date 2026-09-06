@@ -1,6 +1,6 @@
 import psycopg
 from psycopg.rows import dict_row
-from models import Task, ValidStatuses
+from task_tracker.models import Task, ValidStatuses
 
 
 class PsycopgTaskRepository:

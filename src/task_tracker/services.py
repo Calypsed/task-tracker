@@ -1,6 +1,6 @@
-from models import Task, ValidStatuses
-from exceptions import TaskNotFoundError, InvalidTaskDescriptionError
-from repositories.protocol import TaskRepository
+from task_tracker.models import Task, ValidStatuses
+from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionError
+from task_tracker.repositories.protocol import TaskRepository
 
 
 class TaskService:

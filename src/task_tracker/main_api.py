@@ -1,11 +1,11 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
-from models import ValidStatuses, TaskCreate, TaskUpdate, TaskResponse
-from services import TaskService
-from repositories.repository_factory import create_repository
-from exceptions import TaskNotFoundError
+from task_tracker.models import ValidStatuses, TaskCreate, TaskUpdate, TaskResponse
+from task_tracker.services import TaskService
+from task_tracker.repositories.repository_factory import create_repository
+from task_tracker.exceptions import TaskNotFoundError
 from dotenv import load_dotenv
-from models import Task
+from task_tracker.models import Task
 from functools import lru_cache
 
 
