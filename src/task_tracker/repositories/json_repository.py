@@ -8,81 +8,93 @@ from task_tracker.models import ValidStatuses
 class JsonTaskRepository:
     def __init__(self, filename: str) -> None:
         self._filename = filename
-        data = self._load_tasks()
-        self._next_ID = data[constants.KEY_NEXT_ID]
-        tasks_data = data[constants.KEY_TASKS]
-        self._tasks = [self._to_task(t) for t in tasks_data]
 
     @staticmethod
     def _to_dict(task: Task) -> dict:
         return {
-            constants.KEY_ID: task.id,
-            constants.KEY_DESCRIPTION: task.description,
-            constants.KEY_STATUS: task.status,
-            constants.KEY_CREATED_AT: task.created_at.isoformat(),
-            constants.KEY_UPDATED_AT: task.updated_at.isoformat(),
+            constants.KEY_STORAGE_ID: task.id,
+            constants.KEY_STORAGE_DESCRIPTION: task.description,
+            constants.KEY_STORAGE_STATUS: task.status,
+            constants.KEY_STORAGE_CREATED_AT: task.created_at.isoformat(),
+            constants.KEY_STORAGE_UPDATED_AT: task.updated_at.isoformat(),
         }
 
     @staticmethod
     def _to_task(data: dict) -> Task:
         return Task(
-            id=data[constants.KEY_ID],
-            description=data[constants.KEY_DESCRIPTION],
-            status=ValidStatuses(data[constants.KEY_STATUS]),
-            created_at=datetime.fromisoformat(data[constants.KEY_CREATED_AT]),
-            updated_at=datetime.fromisoformat(data[constants.KEY_UPDATED_AT]),
+            id=data[constants.KEY_STORAGE_ID],
+            description=data[constants.KEY_STORAGE_DESCRIPTION],
+            status=ValidStatuses(data[constants.KEY_STORAGE_STATUS]),
+            created_at=datetime.fromisoformat(data[constants.KEY_STORAGE_CREATED_AT]),
+            updated_at=datetime.fromisoformat(data[constants.KEY_STORAGE_UPDATED_AT]),
         )
 
-    def _load_tasks(self):
+    def _load_data(self) -> dict:
         try:
             with open(self._filename, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             empty_data = {
-                constants.KEY_NEXT_ID: 0,
+                constants.KEY_JSON_NEXT_ID: 1,
                 constants.KEY_TASKS: [],
             }
-            with open(self._filename, "w") as f:
-                json.dump(empty_data, f)
             return empty_data
 
-    def _write_tasks(self):
+    def _save_data(self, data: dict):
         with open(self._filename, "w") as f:
             json.dump(
-                {
-                    constants.KEY_NEXT_ID: self._next_ID,
-                    constants.KEY_TASKS: [self._to_dict(t) for t in self._tasks],
-                },
+                data,
                 f,
             )
 
-    def create(self, description: str, status: ValidStatuses) -> Task:
-        new_ID = self._next_ID
-        self._next_ID += 1
+    def create(
+        self,
+        description: str,
+        status: ValidStatuses,
+    ) -> Task:
+        data = self._load_data()
+        next_id = data[constants.KEY_JSON_NEXT_ID]
+        dict_tasks = data[constants.KEY_TASKS]
 
         now = datetime.now(timezone.utc)
         task = Task(
-            id=new_ID,
+            id=next_id,
             description=description,
             status=status,
             created_at=now,
             updated_at=now,
         )
+        dict_task = self._to_dict(task)
+        dict_tasks.append(dict_task)
+        next_id += 1
 
-        self._tasks.append(task)
-        self._write_tasks()
-
+        data = {constants.KEY_JSON_NEXT_ID: next_id, constants.KEY_TASKS: dict_tasks}
+        self._save_data(data)
         return task
 
     def get_all(self, status: ValidStatuses | None = None) -> list[Task]:
-        if status is None:
-            return self._tasks.copy()
+        data = self._load_data()
+        dict_tasks = data[constants.KEY_TASKS]
 
-        return [t for t in self._tasks if t.status == status]
+        if status is None:
+            tasks = [self._to_task(dict_task) for dict_task in dict_tasks]
+        else:
+            str_status = status.value
+            tasks = [
+                self._to_task(dict_task)
+                for dict_task in dict_tasks
+                if dict_task[constants.KEY_STORAGE_STATUS] == str_status
+            ]
+
+        return tasks
 
     def get_by_id(self, task_id: int) -> Task | None:
-        for task in self._tasks:
-            if task.id == task_id:
+        data = self._load_data()
+        dict_tasks = data[constants.KEY_TASKS]
+
+        for dict_task in dict_tasks:
+            if dict_task[constants.KEY_STORAGE_ID] == task_id:
+                task = self._to_task(dict_task)
                 return task
         return None
 
@@ -93,31 +105,38 @@ class JsonTaskRepository:
         description: str | None = None,
         status: ValidStatuses | None = None,
     ) -> Task | None:
-        task = self.get_by_id(task_id)
+        data = self._load_data()
+        dict_tasks = data[constants.KEY_TASKS]
 
-        if description is None and status is None:
-            return task
+        for index, dict_task in enumerate(dict_tasks):
+            if dict_task[constants.KEY_STORAGE_ID] == task_id:
+                task = self._to_task(dict_task)
 
-        if task is None:
-            return None
+                if description is None and status is None:
+                    return task
 
-        if description is not None:
-            task.description = description
+                if description is not None:
+                    task.description = description
+                if status is not None:
+                    task.status = status
 
-        if status is not None:
-            task.status = status
+                task.updated_at = datetime.now(timezone.utc)
 
-        task.updated_at = datetime.now(timezone.utc)
+                updated_dict_task = self._to_dict(task)
+                dict_tasks[index] = updated_dict_task
+                self._save_data(data)
+                return task
 
-        self._write_tasks()
-
-        return task
+        return None
 
     def delete(self, task_id: int) -> bool:
-        for i, task in enumerate(self._tasks):
-            if task.id == task_id:
-                self._tasks.pop(i)
-                self._write_tasks()
+        data = self._load_data()
+        dict_tasks = data[constants.KEY_TASKS]
+
+        for index, dict_task in enumerate(dict_tasks):
+            if dict_task[constants.KEY_STORAGE_ID] == task_id:
+                dict_tasks.pop(index)
+                self._save_data(data)
                 return True
 
         return False
