@@ -14,8 +14,9 @@ def to_task_response(task: Task) -> TaskResponse:
         id=task.id,
         description=task.description,
         status=task.status,
-        createdAt=task.created_at,
-        updatedAt=task.updated_at,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+        due_at=task.due_at,
     )
 
 
@@ -69,4 +70,6 @@ def delete_task(task_id: int, service: TaskService = Depends(get_service)):
 
 @app.post("/tasks", response_model=TaskResponse, status_code=201)
 def create_task(task: TaskCreate, service: TaskService = Depends(get_service)):
-    return to_task_response(service.create_task(task.description))
+    return to_task_response(
+        service.create_task(description=task.description, due_at=task.due_at)
+    )

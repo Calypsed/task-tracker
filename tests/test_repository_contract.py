@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from task_tracker.constants import RepositoryType
 from typing import assert_never
 from task_tracker.database.connection import make_sqlalchemy_url
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -33,80 +34,128 @@ def clear_database(dsn: str) -> None:
         RepositoryType.SQLALCHEMY_CORE,
     ]
 )
-def repository(request, tmp_path):
+def repository_factory(request, tmp_path):
     repository_type: RepositoryType = request.param
 
     match repository_type:
         case RepositoryType.JSON:
             filename = tmp_path / "tasks.json"
 
-            yield JsonTaskRepository(str(filename))
+            def create_json_repository():
+                return JsonTaskRepository(str(filename))
+
+            yield create_json_repository
             return
 
         case RepositoryType.PSYCOPG:
+            request.getfixturevalue("migrate_test_database")
+
             dsn = os.environ["TEST_DATABASE_URL"]
+
+            def create_psycopg_repository():
+                return PsycopgTaskRepository(dsn)
+
             clear_database(dsn)
-
-            yield PsycopgTaskRepository(dsn)
-
+            yield create_psycopg_repository
             clear_database(dsn)
             return
 
         case RepositoryType.SQLALCHEMY_ORM:
+            request.getfixturevalue("migrate_test_database")
+
             dsn = os.environ["TEST_DATABASE_URL"]
-            clear_database(dsn)
-
             engine = create_engine(make_sqlalchemy_url(dsn))
-
             session_factory = sessionmaker(
                 bind=engine,
                 expire_on_commit=False,
             )
 
-            yield SqlAlchemyOrmTaskRepository(session_factory)
+            def create_orm_repository():
+                return SqlAlchemyOrmTaskRepository(session_factory)
 
-            engine.dispose()
             clear_database(dsn)
+            yield create_orm_repository
+            clear_database(dsn)
+            engine.dispose()
             return
 
         case RepositoryType.SQLALCHEMY_CORE:
-            dsn = os.environ["TEST_DATABASE_URL"]
-            clear_database(dsn)
+            request.getfixturevalue("migrate_test_database")
 
+            dsn = os.environ["TEST_DATABASE_URL"]
             engine = create_engine(make_sqlalchemy_url(dsn))
 
-            yield SqlAlchemyCoreTaskRepository(engine)
+            def create_core_repository():
+                return SqlAlchemyCoreTaskRepository(engine)
 
-            engine.dispose()
             clear_database(dsn)
+            yield create_core_repository
+            clear_database(dsn)
+            engine.dispose()
             return
 
     assert_never(repository_type)
 
 
-def test_create_returns_created_task(repository):
+@pytest.fixture
+def repository(repository_factory):
+    return repository_factory()
+
+
+@pytest.mark.parametrize(
+    "due_at",
+    [
+        None,
+        datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc),
+    ],
+)
+def test_create_returns_tasks_with_provided_values(repository, due_at):
     task = repository.create(
-        description="Buy groceries",
-        status=ValidStatuses.TODO,
+        description="Buy groceries", status=ValidStatuses.TODO, due_at=due_at
     )
 
     assert task.description == "Buy groceries"
     assert task.status == ValidStatuses.TODO
+    assert task.due_at == due_at
 
 
-def test_create_sets_timestamps(repository):
+@pytest.mark.parametrize(
+    "due_at",
+    [
+        None,
+        datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc),
+    ],
+)
+def test_create_persists_task(repository_factory, due_at):
+    repo1 = repository_factory()
+    created_task = repo1.create(
+        description="Learn pytest",
+        status=ValidStatuses.TODO,
+        due_at=due_at,
+    )
+    repo2 = repository_factory()
+
+    loaded_task = repo2.get_by_id(created_task.id)
+
+    assert loaded_task == created_task
+
+
+def test_created_task_dates_have_timestamps(repository):
     task = repository.create(
         "Buy groceries",
         ValidStatuses.TODO,
+        due_at=datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc),
     )
 
     assert task.created_at is not None
     assert task.updated_at is not None
     assert task.created_at == task.updated_at
     assert task.created_at.tzinfo is not None
+    assert task.updated_at.tzinfo is not None
+    assert task.due_at.tzinfo is not None
 
 
-def test_create_assigns_unique_ids(repository):
+def test_created_task_has_unique_id(repository):
     first_task = repository.create(
         "First task",
         ValidStatuses.TODO,
@@ -134,17 +183,15 @@ def test_get_all_returns_tasks_ordered_by_id(repository):
     assert [task.id for task in tasks] == sorted(task.id for task in tasks)
 
 
-def test_get_all_filters_by_status(repository):
+def test_get_all_can_return_tasks_filtered_by_status(repository):
     todo_task = repository.create(
         "Todo task",
         ValidStatuses.TODO,
     )
-
     repository.create(
         "Done task",
         ValidStatuses.DONE,
     )
-
     second_todo_task = repository.create(
         "Another todo task",
         ValidStatuses.TODO,
@@ -155,12 +202,11 @@ def test_get_all_filters_by_status(repository):
     assert tasks == [todo_task, second_todo_task]
 
 
-def test_get_by_id_returns_existing_task(repository):
+def test_get_by_id_returns_a_single_task(repository):
     repository.create(
         "First task",
         ValidStatuses.TODO,
     )
-
     created_task = repository.create(
         "Second task",
         ValidStatuses.TODO,
@@ -195,7 +241,7 @@ def test_update_changes_description(repository):
     assert updated.status == ValidStatuses.DONE
 
 
-def test_update_changes_status(repository):
+def test_update_returns_task_when_changes_status(repository):
     task = repository.create(
         "Learn pytest",
         ValidStatuses.TODO,
@@ -254,7 +300,6 @@ def test_delete_returns_true_when_task_exists(repository):
         "First task",
         ValidStatuses.TODO,
     )
-
     task = repository.create(
         "Second task",
         ValidStatuses.TODO,
@@ -270,3 +315,17 @@ def test_delete_returns_false_when_task_not_found(repository):
     deleted = repository.delete(999)
 
     assert deleted is False
+
+
+def test_mutating_returned_task_does_not_change_persisted_task(repository):
+    task = repository.create(
+        "Created description",
+        ValidStatuses.TODO,
+    )
+
+    task.description = "New description"
+
+    persisted = repository.get_by_id(task.id)
+
+    assert persisted is not None
+    assert persisted.description == "Created description"

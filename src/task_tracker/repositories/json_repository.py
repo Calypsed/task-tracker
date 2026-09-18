@@ -11,22 +11,27 @@ class JsonTaskRepository:
 
     @staticmethod
     def _to_dict(task: Task) -> dict:
+        str_due_at = task.due_at.isoformat() if task.due_at is not None else None
         return {
             constants.KEY_STORAGE_ID: task.id,
             constants.KEY_STORAGE_DESCRIPTION: task.description,
             constants.KEY_STORAGE_STATUS: task.status,
             constants.KEY_STORAGE_CREATED_AT: task.created_at.isoformat(),
             constants.KEY_STORAGE_UPDATED_AT: task.updated_at.isoformat(),
+            constants.KEY_STORAGE_DUE_AT: str_due_at,
         }
 
     @staticmethod
     def _to_task(data: dict) -> Task:
+        raw_due_at = data.get(constants.KEY_STORAGE_DUE_AT)
+        due_at = datetime.fromisoformat(raw_due_at) if raw_due_at is not None else None
         return Task(
             id=data[constants.KEY_STORAGE_ID],
             description=data[constants.KEY_STORAGE_DESCRIPTION],
             status=ValidStatuses(data[constants.KEY_STORAGE_STATUS]),
             created_at=datetime.fromisoformat(data[constants.KEY_STORAGE_CREATED_AT]),
             updated_at=datetime.fromisoformat(data[constants.KEY_STORAGE_UPDATED_AT]),
+            due_at=due_at,
         )
 
     def _load_data(self) -> dict:
@@ -48,9 +53,7 @@ class JsonTaskRepository:
             )
 
     def create(
-        self,
-        description: str,
-        status: ValidStatuses,
+        self, description: str, status: ValidStatuses, due_at: datetime | None = None
     ) -> Task:
         data = self._load_data()
         next_id = data[constants.KEY_JSON_NEXT_ID]
@@ -63,6 +66,7 @@ class JsonTaskRepository:
             status=status,
             created_at=now,
             updated_at=now,
+            due_at=due_at,
         )
         dict_task = self._to_dict(task)
         dict_tasks.append(dict_task)

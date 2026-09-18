@@ -6,9 +6,11 @@ from task_tracker.models import Task, ValidStatuses
 class FakeTaskRepository:
     def __init__(self) -> None:
         self.tasks: list[Task] = []
-        self.next_id = 0
+        self.next_id = 1
 
-    def create(self, description: str, status: ValidStatuses) -> Task:
+    def create(
+        self, *, description: str, status: ValidStatuses, due_at: datetime | None = None
+    ) -> Task:
         now = datetime.now(timezone.utc)
 
         task = Task(
@@ -17,6 +19,7 @@ class FakeTaskRepository:
             status=status,
             created_at=now,
             updated_at=now,
+            due_at=due_at,
         )
 
         self.tasks.append(task)

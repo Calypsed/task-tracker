@@ -2,6 +2,8 @@ from task_tracker.models import ValidStatuses
 from task_tracker.repositories.json_repository import JsonTaskRepository
 import pytest
 import json
+import task_tracker.constants as constants
+from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -27,7 +29,7 @@ def test_create_creates_file_when_it_does_not_exist(filename):
 
     repository = JsonTaskRepository(str(filename))
 
-    task = repository.create(description="Task description", status=ValidStatuses.TODO)
+    repository.create(description="Task description", status=ValidStatuses.TODO)
 
     assert filename.exists() is True
 
@@ -82,3 +84,33 @@ def test_repository_does_not_overwrite_corrupted_json(tmp_path):
     with pytest.raises(json.JSONDecodeError):
         repo.get_all()
     assert filename.read_text() == corrupted_data
+
+
+def test_legacy_task_without_due_at_is_loaded_with_none_due_at(tmp_path):
+    filename = tmp_path / "tasks.json"
+    str_now = datetime.now(timezone.utc).isoformat()
+    task_id = 1
+    data = {
+        constants.KEY_JSON_NEXT_ID: 2,
+        constants.KEY_TASKS: [
+            {
+                constants.KEY_STORAGE_ID: task_id,
+                constants.KEY_STORAGE_DESCRIPTION: "Some description",
+                constants.KEY_STORAGE_STATUS: ValidStatuses.TODO.value,
+                constants.KEY_STORAGE_CREATED_AT: str_now,
+                constants.KEY_STORAGE_UPDATED_AT: str_now,
+            }
+        ],
+    }
+    with open(filename, "w") as f:
+        json.dump(
+            data,
+            f,
+        )
+
+    repo = JsonTaskRepository(str(filename))
+
+    task = repo.get_by_id(task_id)
+
+    assert task is not None
+    assert task.due_at is None

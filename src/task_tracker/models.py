@@ -1,7 +1,8 @@
 from enum import Enum
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, Field
 from datetime import datetime
 from dataclasses import dataclass
+import task_tracker.constants as constants
 
 
 class ValidStatuses(str, Enum):
@@ -17,10 +18,14 @@ class Task:
     status: ValidStatuses
     created_at: datetime
     updated_at: datetime
+    due_at: datetime | None = None
 
 
 class TaskCreate(BaseModel):
     description: str
+    due_at: datetime | None = Field(
+        validation_alias=constants.KEY_API_DUE_AT, default=None
+    )
 
     @field_validator("description")
     @classmethod
@@ -70,5 +75,8 @@ class TaskResponse(BaseModel):
     id: int
     description: str
     status: ValidStatuses
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime = Field(serialization_alias=constants.KEY_API_CREATED_AT)
+    updated_at: datetime = Field(serialization_alias=constants.KEY_API_UPDATED_AT)
+    due_at: datetime | None = Field(
+        serialization_alias=constants.KEY_API_DUE_AT, default=None
+    )

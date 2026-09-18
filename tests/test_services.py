@@ -4,6 +4,7 @@ from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionErr
 from task_tracker.models import ValidStatuses
 from task_tracker.services import TaskService
 from tests.fakes import FakeTaskRepository
+from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -17,31 +18,35 @@ def service(repository):
 
 
 def test_create_task_creates_todo_task(service):
-    task = service.create_task("Learn pytest")
+    due_at = datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc)
+    task = service.create_task(description="Learn pytest", due_at=due_at)
 
+    assert task is not None
     assert task.description == "Learn pytest"
     assert task.status == ValidStatuses.TODO
+    assert task.due_at == due_at
 
 
 def test_create_task_raises_when_description_is_too_short(service):
     with pytest.raises(InvalidTaskDescriptionError):
-        service.create_task("ab")
+        service.create_task(description="ab")
 
 
 def test_create_task_raises_when_description_contains_only_spaces(service):
     with pytest.raises(InvalidTaskDescriptionError):
-        service.create_task("   ")
+        service.create_task(description="   ")
 
 
 def test_create_task_strips_description(service):
-    task = service.create_task("  Learn pytest  ")
+    task = service.create_task(description="  Learn pytest  ")
+
     assert task.description == "Learn pytest"
 
 
 def test_get_task_by_id_returns_task(service, repository):
     created_task = repository.create(
-        "Learn pytest",
-        ValidStatuses.TODO,
+        description="Learn pytest",
+        status=ValidStatuses.TODO,
     )
 
     task = service.get_task_by_id(created_task.id)
@@ -58,8 +63,8 @@ def test_get_task_by_id_raises_with_correct_id(service):
 
 def test_update_task_changes_description(service, repository):
     task = repository.create(
-        "Old description",
-        ValidStatuses.TODO,
+        description="Old description",
+        status=ValidStatuses.TODO,
     )
 
     updated_task = service.update_task(
@@ -75,8 +80,8 @@ def test_update_task_raises_when_description_is_too_short(
     repository,
 ):
     task = repository.create(
-        "Old description",
-        ValidStatuses.TODO,
+        description="Old description",
+        status=ValidStatuses.TODO,
     )
 
     with pytest.raises(InvalidTaskDescriptionError):
@@ -91,8 +96,8 @@ def test_update_task_strips_description(
     repository,
 ):
     task = repository.create(
-        "Old description",
-        ValidStatuses.TODO,
+        description="Old description",
+        status=ValidStatuses.TODO,
     )
 
     updated_task = service.update_task(
@@ -108,8 +113,8 @@ def test_update_task_raises_when_description_contains_only_spaces(
     repository,
 ):
     task = repository.create(
-        "Old description",
-        ValidStatuses.TODO,
+        description="Old description",
+        status=ValidStatuses.TODO,
     )
 
     with pytest.raises(InvalidTaskDescriptionError):
@@ -121,8 +126,8 @@ def test_update_task_raises_when_description_contains_only_spaces(
 
 def test_update_task_changes_status(service, repository):
     task = repository.create(
-        "Learn pytest",
-        ValidStatuses.TODO,
+        description="Learn pytest",
+        status=ValidStatuses.TODO,
     )
 
     updated_task = service.update_task(
@@ -141,10 +146,10 @@ def test_update_task_raises_when_task_not_found(service):
         )
 
 
-def test_delete_task(service, repository):
+def test_delete_task_deletes_task(service, repository):
     task = repository.create(
-        "Learn pytest",
-        ValidStatuses.TODO,
+        description="Learn pytest",
+        status=ValidStatuses.TODO,
     )
 
     service.delete_task(task.id)

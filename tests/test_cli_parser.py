@@ -4,6 +4,7 @@ from task_tracker.main_cli import create_parser
 
 def test_parser_parses_add_command():
     parser = create_parser()
+
     args = parser.parse_args(["add", "Task description"])
 
     assert args.command == "add"
@@ -76,7 +77,6 @@ def test_parser_displays_help(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["--help"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 0
@@ -88,7 +88,6 @@ def test_parser_rejects_unknown_command(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["banana"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -100,7 +99,6 @@ def test_parser_rejects_missing_command(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args([])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -121,7 +119,6 @@ def test_parser_rejects_non_integer_task_id(capsys, cli_args):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(cli_args)
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -142,7 +139,6 @@ def test_parser_rejects_missing_task_id(capsys, cli_args):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(cli_args)
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -154,7 +150,6 @@ def test_parser_rejects_missing_description_for_add(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["add"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -166,7 +161,6 @@ def test_parser_rejects_missing_description_for_update(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["update", "1"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -178,7 +172,6 @@ def test_parser_rejects_status_not_in_choices(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["list", "banana"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2

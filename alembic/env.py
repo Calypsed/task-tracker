@@ -21,7 +21,7 @@ if config.config_file_name is not None:
 
 load_dotenv()
 
-database_url = os.environ["DATABASE_URL"]
+database_url = os.environ["ALEMBIC_DATABASE_URL"]
 
 config.set_main_option(
     "sqlalchemy.url",

@@ -1,6 +1,8 @@
 import psycopg
 from psycopg.rows import dict_row
 from task_tracker.models import Task, ValidStatuses
+from datetime import datetime
+import task_tracker.constants as constants
 
 
 class PsycopgTaskRepository:
@@ -13,25 +15,29 @@ class PsycopgTaskRepository:
     @staticmethod
     def _to_task(row) -> Task:
         return Task(
-            id=row["id"],
-            description=row["description"],
-            status=ValidStatuses(row["status"]),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            id=row[constants.KEY_STORAGE_ID],
+            description=row[constants.KEY_STORAGE_DESCRIPTION],
+            status=ValidStatuses(row[constants.KEY_STORAGE_STATUS]),
+            created_at=row[constants.KEY_STORAGE_CREATED_AT],
+            updated_at=row[constants.KEY_STORAGE_UPDATED_AT],
+            due_at=row[constants.KEY_STORAGE_DUE_AT],
         )
 
-    def create(self, description: str, status: ValidStatuses) -> Task:
+    def create(
+        self, description: str, status: ValidStatuses, due_at: datetime | None = None
+    ) -> Task:
         with self._connect() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
                 row = cursor.execute(
                     """
-                    INSERT INTO tasks (description, status)
-                    VALUES (%s, %s)
+                    INSERT INTO tasks (description, status, due_at)
+                    VALUES (%s, %s, %s)
                     RETURNING *
                     """,
                     (
                         description,
                         status.value,
+                        due_at,
                     ),
                 ).fetchone()
 
@@ -46,24 +52,14 @@ class PsycopgTaskRepository:
             with conn.cursor(row_factory=dict_row) as cursor:
                 if status is None:
                     rows = cursor.execute("""
-                        SELECT
-                            id,
-                            description,
-                            status,
-                            created_at,
-                            updated_at
+                        SELECT *
                         FROM tasks
                         ORDER BY id
                         """).fetchall()
                 else:
                     rows = cursor.execute(
                         """
-                        SELECT
-                            id,
-                            description,
-                            status,
-                            created_at,
-                            updated_at
+                        SELECT *
                         FROM tasks
                         WHERE status = %s
                         ORDER BY id
@@ -83,7 +79,8 @@ class PsycopgTaskRepository:
                         description,
                         status,
                         created_at,
-                        updated_at
+                        updated_at,
+                        due_at
                     FROM tasks
                     WHERE id = %s
                     """,

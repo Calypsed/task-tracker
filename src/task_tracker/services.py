@@ -1,6 +1,7 @@
 from task_tracker.models import Task, ValidStatuses
 from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionError
 from task_tracker.repositories.protocol import TaskRepository
+from datetime import datetime
 
 
 class TaskService:
@@ -16,14 +17,13 @@ class TaskService:
         return description
 
     def get_tasks(self, status: ValidStatuses | None = None) -> list[Task]:
-        return self.repository.get_all(status)
+        return self.repository.get_all(status=status)
 
-    def create_task(self, description: str) -> Task:
+    def create_task(self, *, description: str, due_at: datetime | None = None) -> Task:
         description = self._validate_description(description)
 
         return self.repository.create(
-            description,
-            ValidStatuses.TODO,
+            description=description, status=ValidStatuses.TODO, due_at=due_at
         )
 
     def delete_task(self, task_id: int) -> None:

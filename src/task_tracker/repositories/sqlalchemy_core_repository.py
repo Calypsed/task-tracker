@@ -3,6 +3,7 @@ from task_tracker.database.models import TaskModel
 from sqlalchemy import Engine, Table, delete, func, insert, select, update
 from sqlalchemy.engine import Row
 from typing import cast
+from datetime import datetime
 
 
 class SqlAlchemyCoreTaskRepository:
@@ -18,18 +19,18 @@ class SqlAlchemyCoreTaskRepository:
             status=ValidStatuses(row.status),
             created_at=row.created_at,
             updated_at=row.updated_at,
+            due_at=row.due_at,
         )
 
     def create(
-        self,
-        description: str,
-        status: ValidStatuses,
+        self, description: str, status: ValidStatuses, due_at: datetime | None = None
     ) -> Task:
         statement = (
             insert(self._table)
             .values(
                 description=description,
                 status=status.value,
+                due_at=due_at,
             )
             .returning(self._table)
         )

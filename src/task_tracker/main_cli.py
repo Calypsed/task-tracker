@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 def add_task(args, service: TaskService):
     try:
-        task = service.create_task(args.description)
+        task = service.create_task(description=args.description)
     except InvalidTaskDescriptionError:
         print("Description must contain at least 3 characters.")
         return
