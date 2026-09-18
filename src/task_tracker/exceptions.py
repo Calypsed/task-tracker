@@ -6,3 +6,7 @@ class TaskNotFoundError(Exception):
 
 class InvalidTaskDescriptionError(Exception):
     pass
+
+
+class InvalidTaskDueAtError(Exception):
+    pass

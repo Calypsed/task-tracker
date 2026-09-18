@@ -8,6 +8,7 @@ dependencies = [
     "psycopg[binary]>=3.3.4",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.52",
+    "tzlocal>=5.4.4",
 ]
 
 [project.scripts]

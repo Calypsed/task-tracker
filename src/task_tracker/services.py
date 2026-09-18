@@ -1,11 +1,26 @@
 from task_tracker.models import Task, ValidStatuses
-from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionError
+from task_tracker.exceptions import (
+    TaskNotFoundError,
+    InvalidTaskDescriptionError,
+    InvalidTaskDueAtError,
+)
 from task_tracker.repositories.protocol import TaskRepository
+from datetime import datetime, timezone
+from collections.abc import Callable
 
 
 class TaskService:
-    def __init__(self, repository: TaskRepository) -> None:
+    def __init__(
+        self,
+        repository: TaskRepository,
+        now_provider: Callable[[], datetime] | None = None,
+    ) -> None:
         self.repository = repository
+        self._now_provider = (
+            now_provider
+            if now_provider is not None
+            else lambda: datetime.now(timezone.utc)
+        )
 
     def _validate_description(self, description: str) -> str:
         description = description.strip()
@@ -15,15 +30,29 @@ class TaskService:
 
         return description
 
-    def get_tasks(self, status: ValidStatuses | None = None) -> list[Task]:
-        return self.repository.get_all(status)
+    def _validate_due_at(self, due_at: datetime | None = None) -> datetime | None:
+        if due_at is None:
+            return None
 
-    def create_task(self, description: str) -> Task:
+        if due_at.tzinfo is None or due_at.utcoffset() is None:
+            raise InvalidTaskDueAtError()
+
+        now = self._now_provider()
+
+        if due_at <= now:
+            raise InvalidTaskDueAtError()
+
+        return due_at
+
+    def get_tasks(self, status: ValidStatuses | None = None) -> list[Task]:
+        return self.repository.get_all(status=status)
+
+    def create_task(self, *, description: str, due_at: datetime | None = None) -> Task:
         description = self._validate_description(description)
+        due_at = self._validate_due_at(due_at)
 
         return self.repository.create(
-            description,
-            ValidStatuses.TODO,
+            description=description, status=ValidStatuses.TODO, due_at=due_at
         )
 
     def delete_task(self, task_id: int) -> None:

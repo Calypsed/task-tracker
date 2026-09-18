@@ -2,6 +2,7 @@ from task_tracker.models import Task, ValidStatuses
 from task_tracker.database.models import TaskModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
+from datetime import datetime
 
 
 class SqlAlchemyOrmTaskRepository:
@@ -16,13 +17,15 @@ class SqlAlchemyOrmTaskRepository:
             status=ValidStatuses(model.status),
             created_at=model.created_at,
             updated_at=model.updated_at,
+            due_at=model.due_at,
         )
 
-    def create(self, description: str, status: ValidStatuses) -> Task:
+    def create(
+        self, description: str, status: ValidStatuses, due_at: datetime | None = None
+    ) -> Task:
         with self._session_factory() as session:
             model = TaskModel(
-                description=description,
-                status=status.value,
+                description=description, status=status.value, due_at=due_at
             )
 
             session.add(model)

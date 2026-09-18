@@ -1,17 +1,90 @@
 import argparse
 
-from task_tracker.exceptions import TaskNotFoundError, InvalidTaskDescriptionError
+from task_tracker.exceptions import (
+    TaskNotFoundError,
+    InvalidTaskDescriptionError,
+    InvalidTaskDueAtError,
+)
 from task_tracker.models import ValidStatuses
 from task_tracker.repositories.repository_factory import create_repository
 from task_tracker.services import TaskService
 from dotenv import load_dotenv
+from datetime import datetime, tzinfo, date, time
+from tzlocal import get_localzone
+
+
+def parse_iso_date(raw_due_at: str) -> datetime:
+    due_at_date = date.fromisoformat(raw_due_at)
+    due_at_datetime = datetime.combine(date=due_at_date, time=time(23, 59, 59))
+    return due_at_datetime
+
+
+def parse_iso_datetime(raw_due_at: str) -> datetime:
+    return datetime.fromisoformat(raw_due_at)
+
+
+def parse_human_date(raw_due_at: str) -> datetime:
+    due_at_datetime = datetime.strptime(raw_due_at, "%d.%m.%Y")
+    due_at_datetime = due_at_datetime.replace(hour=23, minute=59, second=59)
+    return due_at_datetime
+
+
+def parse_human_datetime(raw_due_at: str) -> datetime:
+    return datetime.strptime(raw_due_at, "%d.%m.%Y %H:%M")
+
+
+def parse_due_at(
+    raw_due_at: str | None,
+    default_timezone: tzinfo | None = None,
+) -> datetime | None:
+    if raw_due_at is None:
+        return None
+
+    parsers = [
+        parse_iso_date,
+        parse_iso_datetime,
+        parse_human_date,
+        parse_human_datetime,
+    ]
+
+    for parser in parsers:
+        try:
+            due_at = parser(raw_due_at)
+        except ValueError:
+            continue
+        break
+    else:
+        raise ValueError
+
+    if due_at.tzinfo is None:
+        if default_timezone is None:
+            default_timezone = get_localzone()
+
+        due_at = due_at.replace(tzinfo=default_timezone)
+
+    return due_at
 
 
 def add_task(args, service: TaskService):
     try:
-        task = service.create_task(args.description)
+        due_at = parse_due_at(args.due_at)
+    except ValueError:
+        print(
+            "Invalid deadline format\n"
+            "Supported formats:\n"
+            "DD.MM.YYYY\n"
+            "DD.MM.YYYY HH:MM\n"
+            "ISO 8601, e.g. 2030-02-01T18:30:00+03:00"
+        )
+        return
+
+    try:
+        task = service.create_task(description=args.description, due_at=due_at)
     except InvalidTaskDescriptionError:
         print("Description must contain at least 3 characters.")
+        return
+    except InvalidTaskDueAtError:
+        print("Due date must be later then current time.")
         return
 
     print(f"Task added successfully (ID={task.id})")
@@ -104,6 +177,12 @@ def create_parser():
     add_parser.add_argument(
         "description",
         help="Task description",
+    )
+    add_parser.add_argument(
+        "-d",
+        "--due",
+        dest="due_at",
+        help="Task deadline",
     )
     add_parser.set_defaults(func=add_task)
 

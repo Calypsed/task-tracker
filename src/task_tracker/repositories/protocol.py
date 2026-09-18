@@ -1,12 +1,16 @@
 from typing import Protocol
 from task_tracker.models import Task, ValidStatuses
+from datetime import datetime
 
 
 class TaskRepository(Protocol):
-    def create(self, description: str, status: ValidStatuses) -> Task: ...
+    def create(
+        self, *, description: str, status: ValidStatuses, due_at: datetime | None = None
+    ) -> Task: ...
 
     def get_all(
         self,
+        *,
         status: ValidStatuses | None = None,
     ) -> list[Task]:
         """Return tasks ordered by id in ascending order."""

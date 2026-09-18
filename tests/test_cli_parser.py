@@ -1,13 +1,34 @@
 import pytest
 from task_tracker.main_cli import create_parser
+from datetime import datetime, timezone
 
 
-def test_parser_parses_add_command():
+@pytest.mark.parametrize(
+    ("argv", "expected_due_at"),
+    [
+        (
+            ["add", "Task description"],
+            None,
+        ),
+        (
+            [
+                "add",
+                "Task description",
+                "--due",
+                datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc).isoformat(),
+            ],
+            datetime(2030, 1, 2, 3, 45, 6, 789, tzinfo=timezone.utc).isoformat(),
+        ),
+    ],
+)
+def test_parser_parses_add_command(argv, expected_due_at: str | None):
     parser = create_parser()
-    args = parser.parse_args(["add", "Task description"])
 
-    assert args.command == "add"
-    assert args.description == "Task description"
+    parsed_args = parser.parse_args(argv)
+
+    assert parsed_args.command == "add"
+    assert parsed_args.description == "Task description"
+    assert parsed_args.due_at == expected_due_at
 
 
 def test_parser_parses_delete_command():
@@ -76,7 +97,6 @@ def test_parser_displays_help(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["--help"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 0
@@ -88,7 +108,6 @@ def test_parser_rejects_unknown_command(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["banana"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -100,7 +119,6 @@ def test_parser_rejects_missing_command(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args([])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -121,7 +139,6 @@ def test_parser_rejects_non_integer_task_id(capsys, cli_args):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(cli_args)
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -142,7 +159,6 @@ def test_parser_rejects_missing_task_id(capsys, cli_args):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(cli_args)
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -154,7 +170,6 @@ def test_parser_rejects_missing_description_for_add(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["add"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -166,7 +181,6 @@ def test_parser_rejects_missing_description_for_update(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["update", "1"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
@@ -178,7 +192,6 @@ def test_parser_rejects_status_not_in_choices(capsys):
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["list", "banana"])
-
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 2
