@@ -3,7 +3,7 @@
 __pycache__/
 *.pyc
 tasks.json
-
+TODO.md
 .pytest_cache/
 .ruff_cache/
 .coverage
